@@ -9,3 +9,5 @@ Hakan TÖRE
 Alperen SALMAN
 Muhammet Enes BIÇAK
 Emre Kerim KAYMAK
+
+https://youtu.be/qQqOTEkpNOI
