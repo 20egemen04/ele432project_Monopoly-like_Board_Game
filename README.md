@@ -4,5 +4,6 @@ Made to work on DE1-SoC
 
 The project includes third party IPs.
 
-Egemen Çelik
-Hakan Töre
+Egemen ÇELİK
+Hakan TÖRE
+Alperen SALMAN
