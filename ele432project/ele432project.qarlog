@@ -1,0 +1,50 @@
+Quartus Prime Archive log --	C:/Projects/GitHub/ele432project/ele432project/ele432project.qarlog
+
+Archive:	C:/Projects/GitHub/ele432project/ele432project/ele432project.qar
+Date:		Tue May 19 17:33:33 2026
+Quartus Prime		25.1std.0 Build 1129 10/21/2025 SC Lite Edition
+
+	=========== Files Selected: ===========
+C:/Projects/GitHub/ele432project/ele432project/board_boxes_dynamic.sv
+C:/Projects/GitHub/ele432project/ele432project/board_boxes_static.sv
+C:/Projects/GitHub/ele432project/ele432project/board_display.sv
+C:/Projects/GitHub/ele432project/ele432project/board_texts_dynamic.sv
+C:/Projects/GitHub/ele432project/ele432project/board_texts_static.sv
+C:/Projects/GitHub/ele432project/ele432project/button_debouncer.sv
+C:/Projects/GitHub/ele432project/ele432project/chance_card_text_rom_string.sv
+C:/Projects/GitHub/ele432project/ele432project/change_card_engine.sv
+C:/Projects/GitHub/ele432project/ele432project/char8x8_mem.txt
+C:/Projects/GitHub/ele432project/ele432project/draw_dice.sv
+C:/Projects/GitHub/ele432project/ele432project/draw_pawn.sv
+C:/Projects/GitHub/ele432project/ele432project/ele432project_vga.qpf
+C:/Projects/GitHub/ele432project/ele432project/ele432project_vga.qsf
+C:/Projects/GitHub/ele432project/ele432project/ele432project_vga.sdc
+C:/Projects/GitHub/ele432project/ele432project/font_rom.sv
+C:/Projects/GitHub/ele432project/ele432project/game_top.sv
+C:/Projects/GitHub/ele432project/ele432project/hex_decoder.sv
+C:/Projects/GitHub/ele432project/ele432project/i2c_master.sv
+C:/Projects/GitHub/ele432project/ele432project/main_game_fsm.sv
+C:/Projects/GitHub/ele432project/ele432project/memory_controller.sv
+C:/Projects/GitHub/ele432project/ele432project/mif1.mif
+C:/Projects/GitHub/ele432project/ele432project/monopoly_rng_core.sv
+C:/Projects/GitHub/ele432project/ele432project/mpu6050_controller.sv
+C:/Projects/GitHub/ele432project/ele432project/price_calculator.sv
+C:/Projects/GitHub/ele432project/ele432project/rectgen.sv
+C:/Projects/GitHub/ele432project/ele432project/shake_detector.sv
+C:/Projects/GitHub/ele432project/ele432project/text_display.sv
+C:/Projects/GitHub/ele432project/ele432project/vga.sv
+C:/Projects/GitHub/ele432project/ele432project/vga_memory_sweeper.sv
+C:/Projects/GitHub/ele432project/ele432project/vga_pll.cmp
+C:/Projects/GitHub/ele432project/ele432project/vga_pll.qip
+C:/Projects/GitHub/ele432project/ele432project/vga_pll.sip
+C:/Projects/GitHub/ele432project/ele432project/vga_pll.spd
+C:/Projects/GitHub/ele432project/ele432project/vga_pll.v
+C:/Projects/GitHub/ele432project/ele432project/vga_pll/vga_pll_0002.qip
+C:/Projects/GitHub/ele432project/ele432project/vga_pll/vga_pll_0002.v
+C:/Projects/GitHub/ele432project/ele432project/vga_pll_sim/vga_pll.vo
+C:/Projects/GitHub/ele432project/ele432project/vga_wrapper.sv
+c:/altera_lite/25.1std/quartus/bin64/assignment_defaults.qdf
+	======= Total: 39 files to archive =======
+
+	================ Status: ===============
+All files archived successfully.

@@ -1,0 +1,115 @@
+// vga_memory_sweeper.sv
+
+`timescale 1ns / 1ps
+
+module vga_memory_sweeper (
+    input  logic         clk,
+    input  logic         reset,
+    input  logic [ 15:0] vga_read_data,    // Receives data from RAM
+    output logic [  7:0] vga_addr,         // Sends address out to RAM
+    output logic [ 31:0] player_money,
+    output logic [  3:0] pawn_enabled,
+    output logic [ 19:0] pawn_tile,
+    output logic [  3:0] pawn_selected,
+    output logic [  3:0] pawn_in_makeup,
+    output logic [127:0] tile_ownership,   // 32 tiles * 3 bits (0=Unowned, 4=P1, 5=P2, 6=P3, 7=P4)
+    output logic [ 63:0] vending_machine,  // 32 tiles * 2 bits (0 to 3)
+    output logic [  5:0] dice_info,
+    output logic [  4:0] card_id,
+    output logic [  1:0] total_players,
+    output logic [ 15:0] active_price
+);
+
+  logic fetch_state;
+
+  always_ff @(posedge clk or posedge reset) begin
+
+    if (reset) begin
+      vga_addr        <= 8'd0;
+      fetch_state     <= 1'b0;
+
+      player_money    <= 32'd0;
+      pawn_enabled    <= 4'b0000;
+      pawn_tile       <= 20'd0;
+      pawn_selected   <= 4'b0000;
+      pawn_in_makeup  <= 4'b0000;
+      card_id         <= 5'd0;
+
+      tile_ownership  <= 128'd0;
+      vending_machine <= 64'0;
+      dice_info       <= 6'd0;
+      total_players   <= 2'd0;
+      active_price    <= 16'd0;
+    end else begin
+
+      if (fetch_state == 1'b0) begin
+
+        // Wide Range Adresses
+
+        if (vga_addr >= 8'd10 && vga_addr <= 8'd41) begin
+          // Addresses 10-41: Tile Ownership
+          tile_ownership[((vga_addr-8'd10)*3)+:3] <= vga_read_data[2:0];
+
+        end else if (vga_addr >= 8'd42 && vga_addr <= 8'd73) begin
+          // Addresses 42-73: Vending Machine Counts [cite: 92]
+          vending_machine[((vga_addr-8'd42)*2)+:2] <= vga_read_data[1:0];
+
+        end else begin
+
+          case (vga_addr)
+            // Addresses 0-3: Money & Status 
+            8'd0: begin
+              player_money[7:0] <= vga_read_data[7:0];
+              pawn_enabled[0]   <= (vga_read_data != 16'hFFFF);
+            end
+            8'd1: begin
+              player_money[15:8] <= vga_read_data[7:0];
+              pawn_enabled[1] <= (vga_read_data != 16'hFFFF);
+            end
+            8'd2: begin
+              player_money[23:16] <= vga_read_data[7:0];
+              pawn_enabled[2] <= (vga_read_data != 16'hFFFF);
+            end
+            8'd3: begin
+              player_money[31:24] <= vga_read_data[7:0];
+              pawn_enabled[3] <= (vga_read_data != 16'hFFFF);
+            end
+
+            // Player Positions 
+            8'd4: pawn_tile[4:0] <= vga_read_data[4:0];
+            8'd5: pawn_tile[9:5] <= vga_read_data[4:0];
+            8'd6: pawn_tile[14:10] <= vga_read_data[4:0];
+            8'd7: pawn_tile[19:15] <= vga_read_data[4:0];
+
+            // Dice Data 
+            8'd80: dice_info <= vga_read_data[5:0];
+
+            // Chance Card Data 
+            8'd81: card_id <= vga_read_data[4:0];
+
+            // Makeup Exam Status 
+            8'd90: pawn_in_makeup[0] <= vga_read_data[0];
+            8'd91: pawn_in_makeup[1] <= vga_read_data[0];
+            8'd92: pawn_in_makeup[2] <= vga_read_data[0];
+            8'd93: pawn_in_makeup[3] <= vga_read_data[0];
+
+            // The FSM-to-VGA Mailbox
+            8'd94: total_players <= vga_read_data[1:0];
+            8'd95: pawn_selected <= (4'b0001 << vga_read_data[1:0]);
+            8'd96: active_price <= vga_read_data;
+          endcase
+        end
+
+        // Loop the sweeper back to 0 once it hits Address 96
+        if (vga_addr == 8'd96) vga_addr <= 8'd0;
+        else vga_addr <= vga_addr + 1'b1;
+
+        fetch_state <= 1'b1;
+
+      end else begin
+        fetch_state <= 1'b0;
+      end
+    end
+  end
+
+endmodule

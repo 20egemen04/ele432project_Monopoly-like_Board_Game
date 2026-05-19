@@ -1,0 +1,95 @@
+// vga.sv
+
+module vga (
+    input  logic       clk,
+    input  logic       reset,
+    output logic       vgaclk,         // 25 MHz VGA clock 
+    output logic       hsync,
+    output logic       vsync,
+    output logic       sync_b,
+    output logic       blank_b,        // to monitor & DAC 
+    output logic [7:0] r, g, b,
+    input  logic [3:0]  pawn_enabled,   // which pawns are enabled (for tile coloring)
+    input  logic [19:0] pawn_tile,      // 5-bit tile number (0-31)
+    input  logic [3:0]  pawn_selected,  // whether this pawn is currently selected
+    input  logic [3:0]  pawn_in_makeup // whether this pawn is in the makeup area
+);  // to video DAC 
+
+  logic [9:0] x, y;
+
+  // Use a clock divider to create the 25 MHz VGA pixel clock 
+  // 25 MHz clk period = 40 ns 
+  // Screen is 800 clocks wide by 525 tall, but only 640 x 480 used for display 
+  // HSync = 1/(40 ns * 800) = 31.25 kHz 
+  // Vsync = 31.25 KHz / 525 = 59.52 Hz (~60 Hz refresh rate) 
+
+  // divide 50 MHz input clock by 2 to get 25 MHz clock
+  always_ff @(posedge clk, posedge reset)
+    if (reset) vgaclk <= 1'b0;
+    else vgaclk <= ~vgaclk;
+
+  // generate monitor timing signals 
+  vgaController vgaCont (
+      .vgaclk(vgaclk),
+      .reset(reset),
+      .hsync(hsync), .vsync(vsync),
+      .sync_b(sync_b), .blank_b(blank_b),
+      .hcnt(x), .vcnt(y)
+  );
+
+  // user-defined module to determine pixel color 
+  board_display boardDisp (
+      .x(x), .y(y),
+      .pawn_enabled(pawn_enabled), // Example control signal connection
+      .pawn_tile(pawn_tile),       // Example control signal connection
+      .pawn_selected(pawn_selected), // Example control signal connection
+      .pawn_in_makeup(pawn_in_makeup), // Example control signal connection
+      .r(r), .g(g), .b(b),
+  );
+  
+endmodule 
+
+
+module vgaController #(parameter HBP     = 10'd48,   // horizontal back porch
+                                 HACTIVE = 10'd640,  // number of pixels per line
+                                 HFP     = 10'd16,   // horizontal front porch
+                                 HSYN    = 10'd96,   // horizontal sync pulse = 60 to move electron gun back to left
+                                 HMAX    = HBP + HACTIVE + HFP + HSYN, //48+640+16+96=800: number of horizontal pixels (i.e., clock cycles)
+                                 VBP     = 10'd32,   // vertical back porch
+                                 VACTIVE = 10'd480,  // number of lines
+                                 VFP     = 10'd11,   // vertical front porch
+                                 VSYN    = 10'd2,    // vertical sync pulse = 2 to move electron gun back to top
+                                 VMAX    = VBP + VACTIVE + VFP  + VSYN) //32+480+11+2=525: number of vertical pixels (i.e., clock cycles)                      
+
+     (input  logic vgaclk,
+      input  logic reset,
+      output logic hsync, vsync,
+      output logic sync_b, blank_b, 
+      output logic [9:0] hcnt, vcnt); 
+
+      // counters for horizontal and vertical positions 
+      always @(posedge vgaclk, posedge reset) begin
+        if (reset) begin
+          hcnt <= 0;
+          vcnt <= 0;
+        end else begin
+          hcnt <= hcnt + 10'd1;
+          if (hcnt == HMAX - 1) begin
+            hcnt <= 0;
+            vcnt <= vcnt + 10'd1;
+            if (vcnt == VMAX - 1) vcnt <= 0;
+          end
+        end
+      end
+	  
+
+      // compute sync signals (active low) 
+      assign hsync  = ~( (hcnt >= (HACTIVE + HFP)) & (hcnt < (HACTIVE + HFP + HSYN)) ); 
+      assign vsync  = ~( (vcnt >= (VACTIVE + VFP)) & (vcnt < (VACTIVE + VFP + VSYN)) ); 
+      // Use this for older monitors: assign sync_b = hsync & vsync; 
+      assign sync_b = 1'b0;  // this should be 0 for newer monitors
+
+      // force outputs to black when not writing pixels
+      // The following also works: assign blank_b = hsync & vsync; 
+      assign blank_b = (hcnt < HACTIVE) & (vcnt < VACTIVE); 
+endmodule

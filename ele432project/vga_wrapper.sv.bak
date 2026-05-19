@@ -1,0 +1,32 @@
+// vga_wrapper.sv DE1-SoC wrapper
+
+module vga_wrapper (
+    input  logic       CLOCK_50,
+    input  logic [9:0] SW,
+    output logic       VGA_CLK,
+    output logic       VGA_HS,
+    output logic       VGA_VS,
+    output logic       VGA_SYNC_N,
+    output logic       VGA_BLANK_N,
+    output logic [7:0] VGA_R,
+    output logic [7:0] VGA_G,
+    output logic [7:0] VGA_B
+);
+
+
+  vga vga_inst (
+      .clk(CLOCK_50),
+      .reset(SW[0]),
+      .vgaclk(VGA_CLK),
+      .hsync(VGA_HS),
+      .vsync(VGA_VS),
+      .sync_b(VGA_SYNC_N),
+      .blank_b(VGA_BLANK_N),
+      .r(VGA_R), .g(VGA_G), .b(VGA_B),
+      .pawn_enabled(SW[1], SW[1], SW[1], SW[1]), // Example control signal connection (replicated for 4 pawns)
+      .pawn_tile({SW[6:2], SW[6:2], SW[6:2], SW[6:2]}), // Example control signal connection (replicated for 4 pawns)
+      .pawn_selected({SW[7], SW[7], SW[8], SW[8]}), // Example control signal connection (replicated for 4 pawns)
+      .pawn_in_makeup({SW[9], SW[9], SW[9], SW[9]}) // Example control signal connection (replicated for 4 pawns)
+  );
+
+endmodule

@@ -1,0 +1,928 @@
+// main_game_fsm.sv
+
+module main_game_fsm (
+    input logic clk,
+
+    input logic       sw_reset,    // SW0 - Ana Reset ve Format Şalteri
+    input logic       db_confirm,
+    input logic       db_deny,
+    input logic       db_vending,
+    input logic       db_dice,
+    input logic [4:0] sw_num,
+    input logic       sw_debug,
+
+    output logic       rng_req_dice,
+    output logic       rng_req_card,
+    input  logic [4:0] rng_out,
+    input  logic       rng_ready,
+
+    output logic [ 7:0] mem_addr,
+    output logic [15:0] mem_write_data,
+    output logic        mem_we,
+    output logic        mem_req,
+    input  logic        mem_ack,
+    input  logic [15:0] mem_read_data,
+
+    output logic [3:0] out_dice_1,
+    output logic [3:0] out_dice_2,
+    output logic [4:0] out_card
+);
+
+  // =========================================================================
+  // SRAM MAILBOX ADDRESSES
+  // =========================================================================
+  localparam ADDR_MBX_TOT_PLAYERS = 8'd94;
+  localparam ADDR_MBX_CUR_PLAYER = 8'd95;
+  localparam ADDR_MBX_PRICE = 8'd96;
+  localparam ADDR_MBX_CMD = 8'd97;
+
+  // =========================================================================
+  // MEMORY-MAPPED COMMAND CODES (For Address 97)
+  // =========================================================================
+  localparam CMD_NONE = 16'h0000;
+  localparam CMD_PROMPT_BUY = 16'h0004;
+  localparam CMD_PROMPT_VEND = 16'h0005;
+  localparam CMD_PROMPT_RENT = 16'h0008;
+  localparam CMD_ACK_WAIT = 16'h0009;
+  localparam CMD_GAME_OVER = 16'h0006;
+
+  localparam TILE_MAKEUP_EXAM = 5'd8;
+
+  // =========================================================================
+  // INTERNAL REGISTERS
+  // =========================================================================
+  logic [7:0] wipe_addr;  // Bellek silme sayacı
+  logic [1:0] total_players;  // Max index (00 to 11)
+  logic [1:0] current_player;  // Current index
+  logic [2:0] alive_count;  // Physical count (up to 4)
+
+  logic [3:0] dice_1, dice_2;
+  logic [15:0] player_money;
+  logic [ 4:0] player_pos;
+  logic [ 3:0] current_tile_owner;
+  logic [ 1:0] current_vending_count;
+  logic [ 4:0] drawn_card_id;
+
+  logic [7:0] buy_price, vending_price, rent_0, rent_1, rent_2, rent_3;
+  logic       is_property;
+  logic [7:0] current_rent_owed;
+
+  logic [7:0] card_bank_money, card_all_money, card_next_money;
+  logic card_bank_sign, card_all_sign;
+  logic card_move_en, card_to_makeup;
+  logic [4:0] card_move_tile;
+  logic [2:0] card_move_back;
+
+  assign out_dice_1 = dice_1;
+  assign out_dice_2 = dice_2;
+  assign out_card   = drawn_card_id;
+
+  // =========================================================================
+  // SUB-MODULE INSTANTIATIONS
+  // =========================================================================
+  price_calculator U_PRICE_CALC (
+      .tile_id(player_pos),
+      .buy_price(buy_price),
+      .vending_price(vending_price),
+      .rent_0(rent_0),
+      .rent_1(rent_1),
+      .rent_2(rent_2),
+      .rent_3(rent_3),
+      .is_property(is_property)
+  );
+
+  always_comb begin
+    case (current_vending_count)
+      2'd1:    current_rent_owed = rent_1;
+      2'd2:    current_rent_owed = rent_2;
+      2'd3:    current_rent_owed = rent_3;
+      default: current_rent_owed = rent_0;
+    endcase
+  end
+
+  chance_card_engine U_CHANCE_ENGINE (
+      .card_id(drawn_card_id),
+      .bank_money(card_bank_money),
+      .bank_sign(card_bank_sign),
+      .all_players_money(card_all_money),
+      .all_players_sign(card_all_sign),
+      .next_player_money(card_next_money),
+      .move_en(card_move_en),
+      .move_to_tile(card_move_tile),
+      .move_back_val(card_move_back),
+      .to_makeup_exam(card_to_makeup)
+  );
+
+  // =========================================================================
+  // STATE MACHINE (FSM) ENUMERATION
+  // =========================================================================
+  typedef enum logic [6:0] {
+    WIPE_MEM_START,
+    WIPE_MEM_LOOP,
+    WIPE_MEM_WAIT,
+    WIPE_MEM_DONE,
+
+    INIT_WAIT,
+    WRITE_INIT_MBX,
+    WAIT_INIT_MBX,
+    CHECK_ALIVE,
+    WAIT_ALIVE_MEM,
+    READ_WAIT_MEM,
+    WAIT_WAIT_MEM,
+    WAIT_SKIP_CONFIRM,
+    WRITE_WAIT_CLEAR,
+    WRITE_PLAYER_MBX,
+
+    TURN_START,
+    WAIT_DICE_1,
+    REQ_DICE_2,
+    WAIT_DICE_2,
+    WRITE_DICE_MEM,
+
+    READ_OLD_POS,
+    WAIT_OLD_POS,
+    ADD_START_MONEY,
+    WAIT_START_MONEY,
+    WRITE_NEW_POS,
+    WAIT_NEW_POS,
+
+    READ_TILE_MEM,
+    WAIT_TILE_MEM,
+    READ_VEND_MEM,
+    WAIT_VEND_MEM,
+    EVALUATE_TILE,
+
+    WRITE_BUY_MBX,
+    WRITE_BUY_CMD,
+    WAIT_BUY_DECISION,
+    CLEAR_BUY_CMD,
+    WRITE_BUY_MONEY,
+    WRITE_BUY_OWNER,
+    WRITE_VEND_MBX,
+    WRITE_VEND_CMD,
+    WAIT_VEND_DECISION,
+    CLEAR_VEND_CMD,
+    WRITE_VEND_MONEY,
+    WRITE_VEND_COUNT,
+    WRITE_RENT_MBX,
+    WRITE_RENT_CMD,
+    WAIT_RENT_CONFIRM,
+    CLEAR_RENT_CMD,
+    PAY_RENT,
+    WRITE_RENT_DEDUCT,
+
+    WRITE_PENALTY_CMD,
+    WAIT_PENALTY_CONFIRM,
+    CLEAR_PENALTY_CMD,
+    WRITE_SAFE_CMD,
+    WAIT_SAFE_CONFIRM,
+    CLEAR_SAFE_CMD,
+
+    ELIMINATE_PLAYER,
+    WAIT_ELIMINATE,
+    WRITE_MAKEUP_POS,
+    WAIT_MAKEUP_POS,
+    WRITE_MAKEUP_WAIT,
+    WAIT_MAKEUP_WAIT,
+
+    WAIT_CHANCE_CARD,
+    WRITE_CARD_MEM,
+    WRITE_CARD_CMD,
+    WAIT_CARD_CONFIRM,
+    CLEAR_CARD_CMD,
+    APPLY_CHANCE_CARD,
+    CARD_BANK_WAIT,
+    CARD_MOVE_CHECK,
+    CARD_MOVE_WAIT,
+    CARD_ADD_START_MONEY,
+    CARD_WAIT_START_MONEY,
+    WRITE_CARD_WAIT,
+    WAIT_CARD_WAIT,
+
+    GAME_OVER_WIN,
+    WAIT_GAME_OVER_MBX_1,
+    WRITE_GAME_OVER_CMD,
+    WAIT_GAME_OVER_CMD,
+    WAIT_GAME_OVER,
+    END_TURN
+  } state_t;
+
+  // Başlangıçta direkt format modunda başlar (Elektrik ilk geldiğinde)
+  state_t current_state = WIPE_MEM_START;
+
+  // =========================================================================
+  // MAIN FSM LOGIC (SYNCHRONOUS RESET)
+  // =========================================================================
+  always_ff @(posedge clk) begin
+
+    // --- HARDWARE RESET (SW0) ---
+    if (sw_reset && current_state != WIPE_MEM_START && current_state != WIPE_MEM_LOOP && current_state != WIPE_MEM_WAIT && current_state != WIPE_MEM_DONE) begin
+      current_state  <= WIPE_MEM_START;
+      current_player <= 2'd0;
+      rng_req_dice   <= 1'b0;
+      rng_req_card   <= 1'b0;
+      mem_req        <= 1'b0;
+
+      // --- NORMAL OPERATION ---
+    end else begin
+      case (current_state)
+
+        // ========================================================
+        // [STAGE 0] : SRAM MEMORY WIPER (FORMAT DÖNGÜSÜ)
+        // ========================================================
+        WIPE_MEM_START: begin
+          wipe_addr <= 8'd0;
+          current_player <= 2'd0;
+          current_state <= WIPE_MEM_LOOP;
+        end
+        WIPE_MEM_LOOP: begin
+          mem_addr <= wipe_addr;
+          // İlk 4 adres (0-3) başlangıç paraları, diğer her şey sıfır!
+          if (wipe_addr <= 8'd3) mem_write_data <= 16'd50;
+          else mem_write_data <= 16'd0;
+
+          mem_we <= 1'b1;
+          mem_req <= 1'b1;
+          current_state <= WIPE_MEM_WAIT;
+        end
+        WIPE_MEM_WAIT: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            if (wipe_addr == 8'd97) current_state <= WIPE_MEM_DONE;
+            else begin
+              wipe_addr <= wipe_addr + 1'b1;
+              current_state <= WIPE_MEM_LOOP;
+            end
+          end
+        end
+        WIPE_MEM_DONE: begin
+          // Format bitti. SW0'ın 0'a indirilmesini bekle.
+          if (!sw_reset) current_state <= INIT_WAIT;
+        end
+
+        // ========================================================
+        // [STAGE 1] : BOOT & TURN PREPARATION
+        // ========================================================
+        INIT_WAIT: begin
+          if (db_confirm) begin
+            total_players <= sw_num[1:0];
+            alive_count <= {1'b0, sw_num[1:0]} + 3'd1;
+            mem_addr <= ADDR_MBX_TOT_PLAYERS;
+            mem_write_data <= {13'd0, {1'b0, sw_num[1:0]} + 3'd1};
+            mem_we <= 1'b1;
+            mem_req <= 1'b1;
+            current_state <= WAIT_INIT_MBX;
+          end
+        end
+        WAIT_INIT_MBX: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= CHECK_ALIVE;
+          end
+        end
+
+        CHECK_ALIVE: begin
+          mem_addr <= {6'd0, current_player};
+          mem_we <= 1'b0;
+          mem_req <= 1'b1;
+          current_state <= WAIT_ALIVE_MEM;
+        end
+        WAIT_ALIVE_MEM: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            player_money <= mem_read_data;
+
+            if (mem_read_data == 16'hFFFF) begin
+              if (current_player == total_players) current_player <= 2'd0;
+              else current_player <= current_player + 1'b1;
+              current_state <= CHECK_ALIVE;
+            end else if (mem_read_data >= 16'd256 || alive_count == 3'd1) begin
+              current_state <= GAME_OVER_WIN;
+            end else begin
+              current_state <= READ_WAIT_MEM;
+            end
+          end
+        end
+
+        READ_WAIT_MEM: begin
+          mem_addr <= 8'd90 + {6'd0, current_player};
+          mem_we <= 1'b0;
+          mem_req <= 1'b1;
+          current_state <= WAIT_WAIT_MEM;
+        end
+        WAIT_WAIT_MEM: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            if (mem_read_data > 0) current_state <= WAIT_SKIP_CONFIRM;
+            else current_state <= WRITE_PLAYER_MBX;
+          end
+        end
+
+        WRITE_PLAYER_MBX: begin
+          mem_addr <= ADDR_MBX_CUR_PLAYER;
+          mem_write_data <= {14'd0, current_player};
+          mem_we <= 1'b1;
+          mem_req <= 1'b1;
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= TURN_START;
+          end
+        end
+
+        WAIT_SKIP_CONFIRM: begin
+          if (db_confirm) current_state <= WRITE_WAIT_CLEAR;
+        end
+        WRITE_WAIT_CLEAR: begin
+          mem_addr <= 8'd90 + {6'd0, current_player};
+          mem_write_data <= 16'd0;
+          mem_we <= 1'b1;
+          mem_req <= 1'b1;
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= END_TURN;
+          end
+        end
+
+        // ========================================================
+        // [STAGE 2] : DICE ROLL
+        // ========================================================
+        TURN_START: begin
+          if (db_confirm || db_dice) begin
+            rng_req_dice  <= 1'b1;
+            current_state <= WAIT_DICE_1;
+          end
+        end
+        WAIT_DICE_1: begin
+          if (sw_debug && db_confirm) begin
+            dice_1 <= sw_num[3:0];
+            dice_2 <= 4'd0;
+            rng_req_dice <= 1'b0;
+            current_state <= WRITE_DICE_MEM;
+          end else if (!sw_debug && rng_ready) begin
+            dice_1 <= {1'b0, rng_out[2:0]};
+            rng_req_dice <= 1'b0;
+            current_state <= REQ_DICE_2;
+          end
+        end
+        REQ_DICE_2: begin
+          rng_req_dice  <= 1'b1;
+          current_state <= WAIT_DICE_2;
+        end
+        WAIT_DICE_2: begin
+          if (rng_ready) begin
+            dice_2 <= {1'b0, rng_out[2:0]};
+            rng_req_dice <= 1'b0;
+            current_state <= WRITE_DICE_MEM;
+          end
+        end
+        WRITE_DICE_MEM: begin
+          mem_addr <= 8'd80;
+          mem_write_data <= {8'd0, dice_2, dice_1};
+          mem_we <= 1'b1;
+          mem_req <= 1'b1;
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= READ_OLD_POS;
+          end
+        end
+
+        // ========================================================
+        // [STAGE 3] : MOVEMENT
+        // ========================================================
+        READ_OLD_POS: begin
+          mem_addr <= {6'd0, current_player} + 8'd4;
+          mem_we <= 1'b0;
+          mem_req <= 1'b1;
+          current_state <= WAIT_OLD_POS;
+        end
+        WAIT_OLD_POS: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            player_pos <= (mem_read_data[4:0] + dice_1 + dice_2) % 6'd32;
+            if ((mem_read_data[4:0] + dice_1 + dice_2) >= 6'd32) current_state <= ADD_START_MONEY;
+            else current_state <= WRITE_NEW_POS;
+          end
+        end
+        ADD_START_MONEY: begin
+          player_money <= player_money + 16'd20;
+          mem_addr <= {6'd0, current_player};
+          mem_write_data <= player_money + 16'd20;
+          mem_we <= 1'b1;
+          mem_req <= 1'b1;
+          current_state <= WAIT_START_MONEY;
+        end
+        WAIT_START_MONEY: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= WRITE_NEW_POS;
+          end
+        end
+        WRITE_NEW_POS: begin
+          mem_addr <= {6'd0, current_player} + 8'd4;
+          mem_write_data <= {11'd0, player_pos};
+          mem_we <= 1'b1;
+          mem_req <= 1'b1;
+          current_state <= WAIT_NEW_POS;
+        end
+        WAIT_NEW_POS: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= READ_TILE_MEM;
+          end
+        end
+
+        // ========================================================
+        // [STAGE 4] : TILE EVALUATION
+        // ========================================================
+        READ_TILE_MEM: begin
+          mem_addr <= 8'd10 + {3'd0, player_pos};
+          mem_we <= 1'b0;
+          mem_req <= 1'b1;
+          current_state <= WAIT_TILE_MEM;
+        end
+        WAIT_TILE_MEM: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_tile_owner <= mem_read_data[3:0];
+            current_state <= READ_VEND_MEM;
+          end
+        end
+        READ_VEND_MEM: begin
+          mem_addr <= 8'd42 + {3'd0, player_pos};
+          mem_we <= 1'b0;
+          mem_req <= 1'b1;
+          current_state <= WAIT_VEND_MEM;
+        end
+        WAIT_VEND_MEM: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_vending_count <= mem_read_data[1:0];
+            current_state <= EVALUATE_TILE;
+          end
+        end
+
+        EVALUATE_TILE: begin
+          if (is_property) begin
+            if (current_tile_owner == 4'd0) begin
+              mem_addr <= ADDR_MBX_PRICE;
+              mem_write_data <= {8'd0, buy_price};
+              mem_we <= 1'b1;
+              mem_req <= 1'b1;
+              current_state <= WRITE_BUY_MBX;
+            end else if (current_tile_owner == (4'd4 + {2'd0, current_player})) begin
+              if (current_vending_count < 2'd3) begin
+                mem_addr <= ADDR_MBX_PRICE;
+                mem_write_data <= {8'd0, vending_price};
+                mem_we <= 1'b1;
+                mem_req <= 1'b1;
+                current_state <= WRITE_VEND_MBX;
+              end else begin
+                mem_addr <= ADDR_MBX_CMD;
+                mem_write_data <= CMD_ACK_WAIT;
+                mem_we <= 1'b1;
+                mem_req <= 1'b1;
+                current_state <= WRITE_SAFE_CMD;
+              end
+            end else begin
+              mem_addr <= ADDR_MBX_PRICE;
+              mem_write_data <= {8'd0, current_rent_owed};
+              mem_we <= 1'b1;
+              mem_req <= 1'b1;
+              current_state <= WRITE_RENT_MBX;
+            end
+          end else begin
+            if (player_pos == 5'd24) begin
+              mem_addr <= ADDR_MBX_CMD;
+              mem_write_data <= CMD_ACK_WAIT;
+              mem_we <= 1'b1;
+              mem_req <= 1'b1;
+              current_state <= WRITE_PENALTY_CMD;
+            end else if (player_pos == 5'd2 || player_pos == 5'd14) begin
+              rng_req_card  <= 1'b1;
+              current_state <= WAIT_CHANCE_CARD;
+            end else begin
+              mem_addr <= ADDR_MBX_CMD;
+              mem_write_data <= CMD_ACK_WAIT;
+              mem_we <= 1'b1;
+              mem_req <= 1'b1;
+              current_state <= WRITE_SAFE_CMD;
+            end
+          end
+        end
+
+        // ========================================================
+        // [STAGE 5] : COMMAND WRITING & POP-UP CLEARING
+        // ========================================================
+        WRITE_BUY_MBX: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            mem_addr <= ADDR_MBX_CMD;
+            mem_write_data <= CMD_PROMPT_BUY;
+            mem_we <= 1'b1;
+            mem_req <= 1'b1;
+            current_state <= WRITE_BUY_CMD;
+          end
+        end
+        WRITE_BUY_CMD: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= WAIT_BUY_DECISION;
+          end
+        end
+        WAIT_BUY_DECISION: begin
+          if (db_confirm || db_deny) begin
+            mem_addr <= ADDR_MBX_CMD;
+            mem_write_data <= CMD_NONE;
+            mem_we <= 1'b1;
+            mem_req <= 1'b1;
+            current_state <= CLEAR_BUY_CMD;
+          end
+        end
+        CLEAR_BUY_CMD: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            if (db_confirm && player_money >= buy_price) begin
+              mem_addr <= {6'd0, current_player};
+              mem_write_data <= player_money - buy_price;
+              mem_we <= 1'b1;
+              mem_req <= 1'b1;
+              current_state <= WRITE_BUY_MONEY;
+            end else current_state <= END_TURN;
+          end
+        end
+        WRITE_BUY_MONEY: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            mem_addr <= 8'd10 + {3'd0, player_pos};
+            mem_write_data <= {12'd0, 4'd4 + {2'd0, current_player}};
+            mem_we <= 1'b1;
+            mem_req <= 1'b1;
+            current_state <= WRITE_BUY_OWNER;
+          end
+        end
+        WRITE_BUY_OWNER: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= END_TURN;
+          end
+        end
+
+        WRITE_VEND_MBX: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            mem_addr <= ADDR_MBX_CMD;
+            mem_write_data <= CMD_PROMPT_VEND;
+            mem_we <= 1'b1;
+            mem_req <= 1'b1;
+            current_state <= WRITE_VEND_CMD;
+          end
+        end
+        WRITE_VEND_CMD: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= WAIT_VEND_DECISION;
+          end
+        end
+        WAIT_VEND_DECISION: begin
+          if (db_confirm || db_deny) begin
+            mem_addr <= ADDR_MBX_CMD;
+            mem_write_data <= CMD_NONE;
+            mem_we <= 1'b1;
+            mem_req <= 1'b1;
+            current_state <= CLEAR_VEND_CMD;
+          end
+        end
+        CLEAR_VEND_CMD: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            if (db_confirm && player_money >= vending_price) begin
+              mem_addr <= {6'd0, current_player};
+              mem_write_data <= player_money - vending_price;
+              mem_we <= 1'b1;
+              mem_req <= 1'b1;
+              current_state <= WRITE_VEND_MONEY;
+            end else current_state <= END_TURN;
+          end
+        end
+        WRITE_VEND_MONEY: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            mem_addr <= 8'd42 + {3'd0, player_pos};
+            mem_write_data <= {14'd0, current_vending_count + 2'd1};
+            mem_we <= 1'b1;
+            mem_req <= 1'b1;
+            current_state <= WRITE_VEND_COUNT;
+          end
+        end
+        WRITE_VEND_COUNT: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= END_TURN;
+          end
+        end
+
+        WRITE_RENT_MBX: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            mem_addr <= ADDR_MBX_CMD;
+            mem_write_data <= CMD_PROMPT_RENT;
+            mem_we <= 1'b1;
+            mem_req <= 1'b1;
+            current_state <= WRITE_RENT_CMD;
+          end
+        end
+        WRITE_RENT_CMD: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= WAIT_RENT_CONFIRM;
+          end
+        end
+        WAIT_RENT_CONFIRM: begin
+          if (db_confirm) begin
+            mem_addr <= ADDR_MBX_CMD;
+            mem_write_data <= CMD_NONE;
+            mem_we <= 1'b1;
+            mem_req <= 1'b1;
+            current_state <= CLEAR_RENT_CMD;
+          end
+        end
+        CLEAR_RENT_CMD: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= PAY_RENT;
+          end
+        end
+        PAY_RENT: begin
+          if (player_money >= current_rent_owed) begin
+            mem_addr <= {6'd0, current_player};
+            mem_write_data <= player_money - current_rent_owed;
+            mem_we <= 1'b1;
+            mem_req <= 1'b1;
+            current_state <= WRITE_RENT_DEDUCT;
+          end else current_state <= ELIMINATE_PLAYER;
+        end
+        WRITE_RENT_DEDUCT: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= END_TURN;
+          end
+        end
+
+        WRITE_SAFE_CMD: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= WAIT_SAFE_CONFIRM;
+          end
+        end
+        WAIT_SAFE_CONFIRM: begin
+          if (db_confirm) begin
+            mem_addr <= ADDR_MBX_CMD;
+            mem_write_data <= CMD_NONE;
+            mem_we <= 1'b1;
+            mem_req <= 1'b1;
+            current_state <= CLEAR_SAFE_CMD;
+          end
+        end
+        CLEAR_SAFE_CMD: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= END_TURN;
+          end
+        end
+
+        WRITE_PENALTY_CMD: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= WAIT_PENALTY_CONFIRM;
+          end
+        end
+        WAIT_PENALTY_CONFIRM: begin
+          if (db_confirm) begin
+            mem_addr <= ADDR_MBX_CMD;
+            mem_write_data <= CMD_NONE;
+            mem_we <= 1'b1;
+            mem_req <= 1'b1;
+            current_state <= CLEAR_PENALTY_CMD;
+          end
+        end
+        CLEAR_PENALTY_CMD: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= WRITE_MAKEUP_POS;
+          end
+        end
+
+        ELIMINATE_PLAYER: begin
+          mem_addr <= {6'd0, current_player};
+          mem_write_data <= 16'hFFFF;
+          mem_we <= 1'b1;
+          mem_req <= 1'b1;
+          alive_count <= alive_count - 3'd1;
+          current_state <= WAIT_ELIMINATE;
+        end
+        WAIT_ELIMINATE: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= END_TURN;
+          end
+        end
+
+        WRITE_MAKEUP_POS: begin
+          mem_addr <= {6'd0, current_player} + 8'd4;
+          mem_write_data <= {11'd0, TILE_MAKEUP_EXAM};
+          mem_we <= 1'b1;
+          mem_req <= 1'b1;
+          current_state <= WAIT_MAKEUP_POS;
+        end
+        WAIT_MAKEUP_POS: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= WRITE_MAKEUP_WAIT;
+          end
+        end
+        WRITE_MAKEUP_WAIT: begin
+          mem_addr <= 8'd90 + {6'd0, current_player};
+          mem_write_data <= 16'd1;
+          mem_we <= 1'b1;
+          mem_req <= 1'b1;
+          current_state <= WAIT_MAKEUP_WAIT;
+        end
+        WAIT_MAKEUP_WAIT: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= END_TURN;
+          end
+        end
+
+        // ========================================================
+        // [STAGE 6] : CHANCE CARDS
+        // ========================================================
+        WAIT_CHANCE_CARD: begin
+          if (sw_debug && db_confirm) begin
+            drawn_card_id <= sw_num;
+            rng_req_card  <= 1'b0;
+            current_state <= WRITE_CARD_MEM;
+          end else if (!sw_debug && rng_ready) begin
+            drawn_card_id <= rng_out;
+            rng_req_card  <= 1'b0;
+            current_state <= WRITE_CARD_MEM;
+          end
+        end
+        WRITE_CARD_MEM: begin
+          mem_addr <= 8'd81;
+          mem_write_data <= {11'd0, drawn_card_id};
+          mem_we <= 1'b1;
+          mem_req <= 1'b1;
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            mem_addr <= ADDR_MBX_CMD;
+            mem_write_data <= CMD_ACK_WAIT;
+            mem_we <= 1'b1;
+            mem_req <= 1'b1;
+            current_state <= WRITE_CARD_CMD;
+          end
+        end
+        WRITE_CARD_CMD: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= WAIT_CARD_CONFIRM;
+          end
+        end
+        WAIT_CARD_CONFIRM: begin
+          if (db_confirm) begin
+            mem_addr <= ADDR_MBX_CMD;
+            mem_write_data <= CMD_NONE;
+            mem_we <= 1'b1;
+            mem_req <= 1'b1;
+            current_state <= CLEAR_CARD_CMD;
+          end
+        end
+        CLEAR_CARD_CMD: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= APPLY_CHANCE_CARD;
+          end
+        end
+
+        APPLY_CHANCE_CARD: begin
+          if (card_bank_money > 0) begin
+            mem_addr <= {6'd0, current_player};
+            if (card_bank_sign) begin
+              mem_write_data <= player_money + card_bank_money;
+              player_money   <= player_money + card_bank_money;
+            end else if (player_money >= card_bank_money) begin
+              mem_write_data <= player_money - card_bank_money;
+              player_money   <= player_money - card_bank_money;
+            end else begin
+              mem_write_data <= 16'hFFFF;
+              alive_count <= alive_count - 3'd1;
+            end
+            mem_we <= 1'b1;
+            mem_req <= 1'b1;
+            current_state <= CARD_BANK_WAIT;
+          end else current_state <= CARD_MOVE_CHECK;
+        end
+        CARD_BANK_WAIT: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= CARD_MOVE_CHECK;
+          end
+        end
+
+        CARD_MOVE_CHECK: begin
+          if (card_move_en || card_to_makeup || card_move_back > 0) begin
+            mem_addr <= {6'd0, current_player} + 8'd4;
+            if (card_to_makeup) mem_write_data <= {11'd0, TILE_MAKEUP_EXAM};
+            else if (card_move_en) mem_write_data <= {11'd0, card_move_tile};
+            else if (card_move_back > 0) begin
+              if (player_pos >= card_move_back)
+                mem_write_data <= {11'd0, player_pos - card_move_back};
+              else mem_write_data <= {11'd0, 6'd32 - (card_move_back - player_pos)};
+            end
+            mem_we <= 1'b1;
+            mem_req <= 1'b1;
+            current_state <= CARD_MOVE_WAIT;
+          end else current_state <= END_TURN;
+        end
+        CARD_MOVE_WAIT: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            if (card_to_makeup) current_state <= WRITE_CARD_WAIT;
+            else if (card_move_en && (card_move_tile < player_pos))
+              current_state <= CARD_ADD_START_MONEY;
+            else current_state <= END_TURN;
+          end
+        end
+        CARD_ADD_START_MONEY: begin
+          mem_addr <= {6'd0, current_player};
+          mem_write_data <= player_money + 16'd20;
+          mem_we <= 1'b1;
+          mem_req <= 1'b1;
+          current_state <= CARD_WAIT_START_MONEY;
+        end
+        CARD_WAIT_START_MONEY: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= END_TURN;
+          end
+        end
+
+        WRITE_CARD_WAIT: begin
+          mem_addr <= 8'd90 + {6'd0, current_player};
+          mem_write_data <= 16'd1;
+          mem_we <= 1'b1;
+          mem_req <= 1'b1;
+          current_state <= WAIT_CARD_WAIT;
+        end
+        WAIT_CARD_WAIT: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= END_TURN;
+          end
+        end
+
+        // ========================================================
+        // [STAGE 7] : WIN CONDITION MET
+        // ========================================================
+        GAME_OVER_WIN: begin
+          mem_addr <= ADDR_MBX_CUR_PLAYER;
+          mem_write_data <= {14'd0, current_player};
+          mem_we <= 1'b1;
+          mem_req <= 1'b1;
+          current_state <= WAIT_GAME_OVER_MBX_1;
+        end
+        WAIT_GAME_OVER_MBX_1: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            mem_addr <= ADDR_MBX_CMD;
+            mem_write_data <= CMD_GAME_OVER;
+            mem_we <= 1'b1;
+            mem_req <= 1'b1;
+            current_state <= WRITE_GAME_OVER_CMD;
+          end
+        end
+        WRITE_GAME_OVER_CMD: begin
+          if (mem_ack) begin
+            mem_req <= 1'b0;
+            current_state <= WAIT_GAME_OVER;
+          end
+        end
+        WAIT_GAME_OVER: begin
+          current_state <= WAIT_GAME_OVER;
+        end
+
+        // ========================================================
+        // [STAGE 8] : END OF TURN
+        // ========================================================
+        END_TURN: begin
+          if (current_player == total_players) current_player <= 2'd0;
+          else current_player <= current_player + 1'b1;
+
+          current_state <= CHECK_ALIVE;
+        end
+
+        default: current_state <= WIPE_MEM_START;
+      endcase
+    end
+  end
+endmodule

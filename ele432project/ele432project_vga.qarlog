@@ -1,0 +1,51 @@
+Quartus Prime Archive log --	C:/Projects/quartus/ele432project_vga/ele432project_vga.qarlog
+
+Archive:	C:/Projects/quartus/ele432project_vga/ele432project_vga.qar
+Date:		Tue May 19 13:56:50 2026
+Quartus Prime		25.1std.0 Build 1129 10/21/2025 SC Lite Edition
+
+	=========== Files Selected: ===========
+C:/Projects/quartus/ele432project_vga/board_boxes_dynamic.sv
+C:/Projects/quartus/ele432project_vga/board_boxes_static.sv
+C:/Projects/quartus/ele432project_vga/board_display.sv
+C:/Projects/quartus/ele432project_vga/board_texts_dynamic.sv
+C:/Projects/quartus/ele432project_vga/board_texts_static.sv
+C:/Projects/quartus/ele432project_vga/button_debouncer.sv
+C:/Projects/quartus/ele432project_vga/chance_card_text_rom_string.sv
+C:/Projects/quartus/ele432project_vga/change_card_engine.sv
+C:/Projects/quartus/ele432project_vga/char8x8_mem.txt
+C:/Projects/quartus/ele432project_vga/draw_dice.sv
+C:/Projects/quartus/ele432project_vga/draw_pawn.sv
+C:/Projects/quartus/ele432project_vga/ele432project_vga.qpf
+C:/Projects/quartus/ele432project_vga/ele432project_vga.qsf
+C:/Projects/quartus/ele432project_vga/ele432project_vga.sdc
+C:/Projects/quartus/ele432project_vga/font_rom.sv
+C:/Projects/quartus/ele432project_vga/game_top.sv
+C:/Projects/quartus/ele432project_vga/hex_decoder.sv
+C:/Projects/quartus/ele432project_vga/i2c_master.sv
+C:/Projects/quartus/ele432project_vga/lfsr_8bit.sv
+C:/Projects/quartus/ele432project_vga/main_game_fsm.sv
+C:/Projects/quartus/ele432project_vga/memory_controller.sv
+C:/Projects/quartus/ele432project_vga/mif1.mif
+C:/Projects/quartus/ele432project_vga/monopoly_rng_core.sv
+C:/Projects/quartus/ele432project_vga/mpu6050_controller.sv
+C:/Projects/quartus/ele432project_vga/price_calculator.sv
+C:/Projects/quartus/ele432project_vga/rectgen.sv
+C:/Projects/quartus/ele432project_vga/shake_detector.sv
+C:/Projects/quartus/ele432project_vga/text_display.sv
+C:/Projects/quartus/ele432project_vga/vga.sv
+C:/Projects/quartus/ele432project_vga/vga_memory_sweeper.sv
+C:/Projects/quartus/ele432project_vga/vga_pll.cmp
+C:/Projects/quartus/ele432project_vga/vga_pll.qip
+C:/Projects/quartus/ele432project_vga/vga_pll.sip
+C:/Projects/quartus/ele432project_vga/vga_pll.spd
+C:/Projects/quartus/ele432project_vga/vga_pll.v
+C:/Projects/quartus/ele432project_vga/vga_pll/vga_pll_0002.qip
+C:/Projects/quartus/ele432project_vga/vga_pll/vga_pll_0002.v
+C:/Projects/quartus/ele432project_vga/vga_pll_sim/vga_pll.vo
+C:/Projects/quartus/ele432project_vga/vga_wrapper.sv
+c:/altera_lite/25.1std/quartus/bin64/assignment_defaults.qdf
+	======= Total: 40 files to archive =======
+
+	================ Status: ===============
+All files archived successfully.

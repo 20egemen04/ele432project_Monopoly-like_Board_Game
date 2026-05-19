@@ -1,0 +1,673 @@
+// board_display.sv
+
+// add other signals later
+module board_display(
+    input logic [9:0] x, y,
+    output logic [7:0] r, g, b,
+    input logic control_signal // Example control signal
+);
+
+    logic [7:0] box_static_r, box_static_g, box_static_b;
+    logic [7:0] text_r, text_g, text_b;
+
+    board_boxes_static boxes_static(
+        .x(x), .y(y),
+        .r(box_static_r), .g(box_static_g), .b(box_static_b)
+    );
+
+    board_texts_static texts_static(
+        .x(x), .y(y),
+        .r(text_r), .g(text_g), .b(text_b),
+    );
+
+    always_comb begin
+        // Simple priority: if text is on, show text. Otherwise, show boxes.
+        if ({text_r, text_g, text_b} != 24'h000000) begin
+            r = text_r;
+            g = text_g;
+            b = text_b;
+        end else begin
+            r = box_static_r;
+            g = box_static_g;
+            b = box_static_b;
+        end
+    end
+
+endmodule
+
+
+
+
+module board_texts_static #(
+    parameter BLACK_RGB = 24'h000000,
+    parameter BLACK_TEXT_RGB = 24'h010101, // Slightly off-black to prevent text from being completely invisible when overlapping with box borders
+    parameter WHITE_TEXT_RGB = 24'hFFFFFF
+    //parameter P1_TEXT_RGB = 24'hFF0000
+)(
+    input logic [9:0] x, y,
+    output logic [7:0] r, g, b
+);
+
+    logic [10:0] master_rom_addr;
+    logic [7:0] master_rom_data;
+
+    logic [10:0] text_addr [127:0];
+    logic text_pix [127:0];
+    logic text_box [127:0];
+
+    always_comb begin
+        // Only give the ROM address to the module that the VGA beam is currently inside
+        if (text_box[0]) master_rom_addr = text_addr[0];
+        else if (text_box[1]) master_rom_addr = text_addr[1];
+        else if (text_box[2]) master_rom_addr = text_addr[2];
+        else if (text_box[3]) master_rom_addr = text_addr[3];
+        else if (text_box[4]) master_rom_addr = text_addr[4];
+        else if (text_box[5]) master_rom_addr = text_addr[5];
+        else if (text_box[6]) master_rom_addr = text_addr[6];
+        else if (text_box[7]) master_rom_addr = text_addr[7];
+        else if (text_box[8]) master_rom_addr = text_addr[8];
+        else if (text_box[9]) master_rom_addr = text_addr[9];
+        else if (text_box[10]) master_rom_addr = text_addr[10];
+        else if (text_box[11]) master_rom_addr = text_addr[11];
+        else if (text_box[12]) master_rom_addr = text_addr[12];
+        else if (text_box[13]) master_rom_addr = text_addr[13];
+        else if (text_box[14]) master_rom_addr = text_addr[14];
+        else if (text_box[15]) master_rom_addr = text_addr[15];
+        else if (text_box[16]) master_rom_addr = text_addr[16];
+        else if (text_box[17]) master_rom_addr = text_addr[17];
+        else if (text_box[18]) master_rom_addr = text_addr[18];
+        else if (text_box[19]) master_rom_addr = text_addr[19];
+        else if (text_box[20]) master_rom_addr = text_addr[20];
+        // Add more 'else if' statements here as you add more words!
+
+        else
+        master_rom_addr = 9'd0;  // Default to space when beam is empty
+    end
+
+    font_rom fontROM(
+        .font_addr(master_rom_addr),
+        .font_data_out(master_rom_data)
+    );
+
+    text_display #(.MAX_CHARS(1'd1)) tile_0_text_0
+    (
+        .x(x), .y(y),
+        .start_x(10'd443), .start_y(10'd435), 
+        .enable_display(1'b1),  // Always ON for the static board
+        .text_string("0"),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[0]), 
+        .pixel_on(text_pix[0]), .in_box(text_box[0])
+    );
+
+    text_display #(.MAX_CHARS(3'd5)) tile_0_text_1
+    (
+        .x(x), .y(y),
+        .start_x(10'd427), .start_y(10'd443), 
+        .enable_display(1'b1),  // Always ON for the static board
+        .text_string("START"),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[1]), 
+        .pixel_on(text_pix[1]), .in_box(text_box[1])
+    );
+
+    text_display #(.MAX_CHARS(3'd5)) tile_0_text_2
+    (
+        .x(x), .y(y),
+        .start_x(10'd427), .start_y(10'd451), 
+        .enable_display(1'b1),  // Always ON for the static board
+        .text_string("$2000"),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[2]), 
+        .pixel_on(text_pix[2]), .in_box(text_box[2])
+    );
+
+    text_display #(.MAX_CHARS(1'd1)) tile_1_text_0
+    (
+        .x(x), .y(y),
+        .start_x(10'd386), .start_y(10'd435), 
+        .enable_display(1'b1),  // Always ON for the static board
+        .text_string("1"),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[3]), 
+        .pixel_on(text_pix[3]), .in_box(text_box[3])
+    );
+
+    text_display #(.MAX_CHARS(2'd2)) tile_1_text_1
+    (
+        .x(x), .y(y),
+        .start_x(10'd382), .start_y(10'd443), 
+        .enable_display(1'b1),  // Always ON for the static board
+        .text_string("E1"),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[4]), 
+        .pixel_on(text_pix[4]), .in_box(text_box[4])
+    );
+
+    text_display #(.MAX_CHARS(1'd1)) tile_2_text_0
+    (
+        .x(x), .y(y),
+        .start_x(10'd332), .start_y(10'd435),
+        .enable_display(1'b1),  // Always ON for the static board
+        .text_string("2"),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[5]), 
+        .pixel_on(text_pix[5]), .in_box(text_box[5])
+    );
+
+    text_display #(.MAX_CHARS(2'd2)) tile_2_text_1
+    (
+        .x(x), .y(y),
+        .start_x(10'd328), .start_y(10'd443), 
+        .enable_display(1'b1),  // Always ON for the static board
+        .text_string("E2"),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[6]), 
+        .pixel_on(text_pix[6]), .in_box(text_box[6])
+    );
+
+    text_display #(.MAX_CHARS(1'd1)) tile_3_text_0
+    (
+        .x(x), .y(y),
+        .start_x(10'd282), .start_y(10'd435),
+        .enable_display(1'b1),  // Always ON for the static board
+        .text_string("3"),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[7]), 
+        .pixel_on(text_pix[7]), .in_box(text_box[7])
+    );
+
+    text_display #(.MAX_CHARS(2'd2)) tile_3_text_1
+    (
+        .x(x), .y(y),
+        .start_x(10'd278), .start_y(10'd443), 
+        .enable_display(1'b1),  // Always ON for the static board
+        .text_string("E3"),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[8]), 
+        .pixel_on(text_pix[8]), .in_box(text_box[8])
+    );
+
+    text_display #(.MAX_CHARS(1'd1)) tile_4_text_0
+    (
+        .x(x), .y(y),
+        .start_x(10'd232), .start_y(10'd435),
+        .enable_display(1'b1),  // Always ON for the static board
+        .text_string("4"),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[9]), 
+        .pixel_on(text_pix[9]), .in_box(text_box[9])
+    );
+
+    text_display #(.MAX_CHARS(3'd6)) tile_4_text_1
+    (
+        .x(x), .y(y),
+        .start_x(10'd216), .start_y(10'd443), 
+        .enable_display(1'b1),  // Always ON for the static board
+        .text_string("CHANCE"),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[10]), 
+        .pixel_on(text_pix[10]), .in_box(text_box[10])
+    );
+
+    text_display #(.MAX_CHARS(1'd1)) tile_5_text_0
+    (
+        .x(x), .y(y),
+        .start_x(10'd182), .start_y(10'd435),
+        .enable_display(1'b1),  // Always ON for the static board
+        .text_string("5"),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[11]), 
+        .pixel_on(text_pix[11]), .in_box(text_box[11])
+    );
+
+    text_display #(.MAX_CHARS(2'd2)) tile_5_text_1
+    (
+        .x(x), .y(y),
+        .start_x(10'd178), .start_y(10'd443), 
+        .enable_display(1'b1),  // Always ON for the static board
+        .text_string("E4"),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[12]), 
+        .pixel_on(text_pix[12]), .in_box(text_box[12])
+    );
+
+    text_display #(.MAX_CHARS(1'd1)) tile_6_text_0
+    (
+        .x(x), .y(y),
+        .start_x(10'd132), .start_y(10'd435),
+        .enable_display(1'b1),  // Always ON for the static board
+        .text_string("6"),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[13]), 
+        .pixel_on(text_pix[13]), .in_box(text_box[13])
+    );
+
+    text_display #(.MAX_CHARS(2'd2)) tile_6_text_1
+    (
+        .x(x), .y(y),
+        .start_x(10'd128), .start_y(10'd443), 
+        .enable_display(1'b1),  // Always ON for the static board
+        .text_string("SS"),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[14]), 
+        .pixel_on(text_pix[14]), .in_box(text_box[14])
+    );
+
+    text_display #(.MAX_CHARS(1'd1)) tile_7_text_0
+    (
+        .x(x), .y(y),
+        .start_x(10'd82), .start_y(10'd435),
+        .enable_display(1'b1),  // Always ON for the static board
+        .text_string("7"),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[15]), 
+        .pixel_on(text_pix[15]), .in_box(text_box[15])
+    );
+
+    text_display #(.MAX_CHARS(2'd2)) tile_7_text_1
+    (
+        .x(x), .y(y),
+        .start_x(10'd78), .start_y(10'd443), 
+        .enable_display(1'b1),  // Always ON for the static board
+        .text_string("E6"),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[16]), 
+        .pixel_on(text_pix[16]), .in_box(text_box[16])
+    );
+
+    text_display #(.MAX_CHARS(1'd1)) tile_8_text_0
+    (
+        .x(x), .y(y),
+        .start_x(10'd36), .start_y(10'd424), 
+        .enable_display(1'b1),  // Always ON for the static board
+        .text_string("8"),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[17]), 
+        .pixel_on(text_pix[17]), .in_box(text_box[17])
+    );
+
+    text_display #(.MAX_CHARS(3'd6)) tile_8_text_1
+    (
+        .x(x), .y(y),
+        .start_x(10'd16), .start_y(10'd432),
+        .enable_display(1'b1),  // Always ON for the static board
+        .text_string("MAKEUP"),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[18]), 
+        .pixel_on(text_pix[18]), .in_box(text_box[18])
+    );
+
+    text_display #(.MAX_CHARS(3'd4)) tile_8_text_2
+    (
+        .x(x), .y(y),
+        .start_x(10'd24), .start_y(10'd440),
+        .enable_display(1'b1),  // Always ON for the static board
+        .text_string("EXAM"),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[19]), 
+        .pixel_on(text_pix[19]), .in_box(text_box[19])
+    );
+
+    text_display #(.MAX_CHARS(3'd6)) tile_8_text_3
+    (
+        .x(x), .y(y),
+        .start_x(10'd16), .start_y(10'd468),
+        .enable_display(1'b1),  // Always ON for the static board
+        .text_string("FINALS"),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[20]), 
+        .pixel_on(text_pix[20]), .in_box(text_box[20])
+    );
+
+
+
+
+
+
+
+
+
+    always_comb begin
+        // Simple priority: if text is on, show white text. Otherwise, show black (transparent).
+        if (text_pix[0] || text_pix[1] || text_pix[2] || text_pix[9] || text_pix[10] || text_pix[17] || text_pix[18] || text_pix[19]) begin
+            {r, g, b} = WHITE_TEXT_RGB;
+        end else if (text_pix) begin
+            {r, g, b} = BLACK_TEXT_RGB;
+        end else begin
+            {r, g, b} = BLACK_RGB;
+        end
+    end
+
+endmodule
+
+
+
+
+module board_boxes_static #(
+    parameter BLACK_RGB = 24'h000000,
+    parameter GLOBAL_BACKGROUND_RGB = 24'hFFEECC,
+    parameter BIG_BOX_BACKGROUND_RGB = 24'h1F1F1F,
+    parameter BIG_BOX_BORDER_RGB = 24'hFFFFFF,
+    parameter TILE_BACKGROUND_RGB = 24'hFFFFFF,
+    parameter TILE_BORDER_RGB = 24'h000000,
+    parameter CORNER_TILE_BACKGROUND_RGB = 24'h9F3F00,
+    parameter CHANCE_TILE_BACKGROUND_RGB = 24'h7F007F,
+    parameter STOP_TILE_BACKGROUND_RGB = 24'h7F003F,
+    parameter PLAYER_INFO_BOX_BACKGROUND_RGB = 24'h000000,
+    parameter PLAYER_INFO_BOX_BORDER_RGB = 24'hFFFFFF,
+    parameter PAWN_1_RGB = 24'hDF0000,
+    parameter PAWN_2_RGB = 24'h00DF00,
+    parameter PAWN_3_RGB = 24'h0000DF,
+    parameter PAWN_4_RGB = 24'hDFDF00,
+    parameter TILE_P1_RGB = 24'hFF9F9F,
+    parameter TILE_P2_RGB = 24'h9FFF9F,
+    parameter TILE_P3_RGB = 24'h9F9FFF,
+    parameter TILE_P4_RGB = 24'hFFFF9F,
+    parameter VENDING_MACHINE_L1_RGB = 24'h00FFFF,
+    parameter VENDING_MACHINE_L2_RGB = 24'h00FFFF,
+    parameter VENDING_MACHINE_L3_RGB = 24'hFF00FF,
+
+    parameter TILE_0_8_TOP = 10'd415,
+    parameter TILE_0_8_BOT = 10'd480,
+    parameter TILE_8_16_LEFT = 10'd0,
+    parameter TILE_8_16_RIGHT = 10'd65,
+    parameter TILE_16_24_TOP = 10'd0,
+    parameter TILE_16_24_BOT = 10'd65,
+    parameter TILE_24_32_LEFT = 10'd415,
+    parameter TILE_24_32_RIGHT = 10'd480
+) (
+    input  logic [9:0] x, y,
+    output logic [7:0] r, g, b
+);
+
+  logic in_global_background;
+  logic in_big_box, on_big_box_border;
+  logic [31:0] in_tile, on_tile_border;
+  logic in_tile_8_visitor, on_tile_8_visitor_border;
+  logic in_player_info_box, on_player_info_box_border;
+  logic [1:0] in_dice_box, on_dice_box_border;
+
+
+  rectgen global_background (
+        .x(x), .y(y),
+        .left(10'd0), .top(10'd0), .right(10'd640), .bot(10'd480),
+        .inrect(in_global_background), .onborder()
+  );
+  rectgen big_box (
+        .x(x), .y(y),
+        .left(10'd70), .top(10'd70), .right(10'd410), .bot(10'd410),
+        .inrect(in_big_box), .onborder(on_big_box_border)
+  );
+
+  rectgen tile_0 (
+        .x(x), .y(y),
+        .left(10'd415), .top(TILE_0_8_TOP), .right(10'd480), .bot(TILE_0_8_BOT),
+        .inrect(in_tile[0]), .onborder(on_tile_border[0])
+  );
+
+  rectgen tile_1 (
+        .x(x), .y(y),
+        .left(10'd365), .top(TILE_0_8_TOP), .right(10'd415), .bot(TILE_0_8_BOT),
+        .inrect(in_tile[1]), .onborder(on_tile_border[1])
+  );
+
+  rectgen tile_2 (
+        .x(x), .y(y),
+        .left(10'd315), .top(TILE_0_8_TOP), .right(10'd365), .bot(TILE_0_8_BOT),
+        .inrect(in_tile[2]), .onborder(on_tile_border[2])
+  );
+
+  rectgen tile_3 (
+        .x(x), .y(y),
+        .left(10'd265), .top(TILE_0_8_TOP), .right(10'd315), .bot(TILE_0_8_BOT),
+        .inrect(in_tile[3]), .onborder(on_tile_border[3])
+  );
+
+  rectgen tile_4 (
+        .x(x), .y(y),
+        .left(10'd215), .top(TILE_0_8_TOP), .right(10'd265), .bot(TILE_0_8_BOT),
+        .inrect(in_tile[4]), .onborder(on_tile_border[4])
+  );
+
+  rectgen tile_5 (
+        .x(x), .y(y),
+        .left(10'd165), .top(TILE_0_8_TOP), .right(10'd215), .bot(TILE_0_8_BOT),
+        .inrect(in_tile[5]), .onborder(on_tile_border[5])
+  );
+  
+  rectgen tile_6 (
+        .x(x), .y(y),
+        .left(10'd115), .top(TILE_0_8_TOP), .right(10'd165), .bot(TILE_0_8_BOT),
+        .inrect(in_tile[6]), .onborder(on_tile_border[6])
+  );
+  
+  rectgen tile_7 (
+        .x(x), .y(y),
+        .left(10'd65), .top(TILE_0_8_TOP), .right(10'd115), .bot(TILE_0_8_BOT),
+        .inrect(in_tile[7]), .onborder(on_tile_border[7])
+  );
+
+  rectgen tile_8_visitor (
+        .x(x), .y(y),
+        .left(TILE_8_16_LEFT), .top(TILE_0_8_TOP), .right(TILE_8_16_RIGHT), .bot(TILE_0_8_BOT),
+        .inrect(in_tile_8_visitor), .onborder(on_tile_8_visitor_border)
+  );
+
+  rectgen tile_8 (
+        .x(x), .y(y),
+        .left(10'd15), .top(TILE_0_8_TOP), .right(TILE_8_16_RIGHT), .bot(10'd465),
+        .inrect(in_tile[8]), .onborder(on_tile_border[8])
+  );
+
+  rectgen tile_9 (
+        .x(x), .y(y),
+        .left(TILE_8_16_LEFT), .top(10'd365), .right(TILE_8_16_RIGHT), .bot(TILE_0_8_TOP),
+        .inrect(in_tile[9]), .onborder(on_tile_border[9])
+  );
+
+  rectgen tile_10 (
+        .x(x), .y(y),
+        .left(TILE_8_16_LEFT), .top(10'd315), .right(TILE_8_16_RIGHT), .bot(10'd365),
+        .inrect(in_tile[10]), .onborder(on_tile_border[10])
+  );
+
+  rectgen tile_11 (
+        .x(x), .y(y),
+        .left(TILE_8_16_LEFT), .top(10'd265), .right(TILE_8_16_RIGHT), .bot(10'd315),
+        .inrect(in_tile[11]), .onborder(on_tile_border[11])
+  );
+
+  rectgen tile_12 (
+        .x(x), .y(y),
+        .left(TILE_8_16_LEFT), .top(10'd215), .right(TILE_8_16_RIGHT), .bot(10'd265),
+        .inrect(in_tile[12]), .onborder(on_tile_border[12])
+  );
+
+  rectgen tile_13 (
+        .x(x), .y(y),
+        .left(TILE_8_16_LEFT), .top(10'd165), .right(TILE_8_16_RIGHT), .bot(10'd215),
+        .inrect(in_tile[13]), .onborder(on_tile_border[13])
+  );
+  
+  rectgen tile_14 (
+        .x(x), .y(y),
+        .left(TILE_8_16_LEFT), .top(10'd115), .right(TILE_8_16_RIGHT), .bot(10'd165),
+        .inrect(in_tile[14]), .onborder(on_tile_border[14])
+  );
+  
+  rectgen tile_15 (
+        .x(x), .y(y),
+        .left(TILE_8_16_LEFT), .top(TILE_16_24_BOT), .right(TILE_8_16_RIGHT), .bot(10'd115),
+        .inrect(in_tile[15]), .onborder(on_tile_border[15])
+  );
+
+  rectgen tile_16 (
+        .x(x), .y(y),
+        .left(TILE_8_16_LEFT), .top(TILE_16_24_TOP), .right(TILE_8_16_RIGHT), .bot(TILE_16_24_BOT),
+        .inrect(in_tile[16]), .onborder(on_tile_border[16])
+  );
+
+  rectgen tile_17 (
+        .x(x), .y(y),
+        .left(10'd65), .top(TILE_16_24_TOP), .right(10'd115), .bot(TILE_16_24_BOT),
+        .inrect(in_tile[17]), .onborder(on_tile_border[17])
+  );
+
+  rectgen tile_18 (
+        .x(x), .y(y),
+        .left(10'd115), .top(TILE_16_24_TOP), .right(10'd165), .bot(TILE_16_24_BOT),
+        .inrect(in_tile[18]), .onborder(on_tile_border[18])
+  );
+
+  rectgen tile_19 (
+        .x(x), .y(y),
+        .left(10'd165), .top(TILE_16_24_TOP), .right(10'd215), .bot(TILE_16_24_BOT),
+        .inrect(in_tile[19]), .onborder(on_tile_border[19])
+  );
+
+  rectgen tile_20 (
+        .x(x), .y(y),
+        .left(10'd215), .top(TILE_16_24_TOP), .right(10'd265), .bot(TILE_16_24_BOT),
+        .inrect(in_tile[20]), .onborder(on_tile_border[20])
+  );
+
+  rectgen tile_21 (
+        .x(x), .y(y),
+        .left(10'd265), .top(TILE_16_24_TOP), .right(10'd315), .bot(TILE_16_24_BOT),
+        .inrect(in_tile[21]), .onborder(on_tile_border[21])
+  );
+
+  rectgen tile_22 (
+        .x(x), .y(y),
+        .left(10'd315), .top(TILE_16_24_TOP), .right(10'd365), .bot(TILE_16_24_BOT),
+        .inrect(in_tile[22]), .onborder(on_tile_border[22])
+  );
+
+  rectgen tile_23 (
+        .x(x), .y(y),
+        .left(10'd365), .top(TILE_16_24_TOP), .right(TILE_24_32_LEFT), .bot(TILE_16_24_BOT),
+        .inrect(in_tile[23]), .onborder(on_tile_border[23])
+  );
+
+  rectgen tile_24 (
+        .x(x), .y(y),
+        .left(TILE_24_32_LEFT), .top(TILE_16_24_TOP), .right(TILE_24_32_RIGHT), .bot(TILE_16_24_BOT),
+        .inrect(in_tile[24]), .onborder(on_tile_border[24])
+  );
+
+  rectgen tile_25 (
+        .x(x), .y(y),
+        .left(TILE_24_32_LEFT), .top(10'd65), .right(TILE_24_32_RIGHT), .bot(10'd115),
+        .inrect(in_tile[25]), .onborder(on_tile_border[25])
+  );
+
+  rectgen tile_26 (
+        .x(x), .y(y),
+        .left(TILE_24_32_LEFT), .top(10'd115), .right(TILE_24_32_RIGHT), .bot(10'd165),
+        .inrect(in_tile[26]), .onborder(on_tile_border[26])
+  );
+
+  rectgen tile_27 (
+        .x(x), .y(y),
+        .left(TILE_24_32_LEFT), .top(10'd165), .right(TILE_24_32_RIGHT), .bot(10'd215),
+        .inrect(in_tile[27]), .onborder(on_tile_border[27])
+  );
+
+  rectgen tile_28 (
+        .x(x), .y(y),
+        .left(TILE_24_32_LEFT), .top(10'd215), .right(TILE_24_32_RIGHT), .bot(10'd265),
+        .inrect(in_tile[28]), .onborder(on_tile_border[28])
+  );
+
+  rectgen tile_29 (
+        .x(x), .y(y),
+        .left(TILE_24_32_LEFT), .top(10'd265), .right(TILE_24_32_RIGHT), .bot(10'd315),
+        .inrect(in_tile[29]), .onborder(on_tile_border[29])
+  );
+
+  rectgen tile_30 (
+        .x(x), .y(y),
+        .left(TILE_24_32_LEFT), .top(10'd315), .right(TILE_24_32_RIGHT), .bot(10'd365),
+        .inrect(in_tile[30]), .onborder(on_tile_border[30])
+  );
+
+  rectgen tile_31 (
+        .x(x), .y(y),
+        .left(TILE_24_32_LEFT), .top(10'd365), .right(TILE_24_32_RIGHT), .bot(TILE_0_8_TOP),
+        .inrect(in_tile[31]), .onborder(on_tile_border[31])
+  );
+
+  rectgen player_info_box (
+        .x(x), .y(y),
+        .left(10'd488), .top(10'd8), .right(10'd632), .bot(10'd58),
+        .inrect(in_player_info_box), .onborder(on_player_info_box_border)
+  );
+
+  rectgen dice_0_box (
+        .x(x), .y(y),
+        .left(10'd506), .top(10'd65), .right(10'd556), .bot(10'd115),
+        .inrect(in_dice_box[0]), .onborder(on_dice_box_border[0])
+  );
+
+  rectgen dice_1_box (
+        .x(x), .y(y),
+        .left(10'd564), .top(10'd65), .right(10'd614), .bot(10'd115),
+        .inrect(in_dice_box[1]), .onborder(on_dice_box_border[1])
+  );
+
+  // ADD OTHER BOX LOGIC HERE
+  // PAWNS, VENDING MACHINE, OTHER OVERLAYS, ETC.
+
+
+
+
+
+  // pixel color logic
+  always_comb begin
+    if (in_big_box) begin
+        if (on_big_box_border) begin
+            {r, g, b} = BIG_BOX_BORDER_RGB;
+        end else begin
+            {r, g, b} = BIG_BOX_BACKGROUND_RGB;
+        end
+    end
+    
+    else if (in_player_info_box) begin
+        if (on_player_info_box_border) begin
+            {r, g, b} = PLAYER_INFO_BOX_BORDER_RGB;
+        end else begin
+            {r, g, b} = PLAYER_INFO_BOX_BACKGROUND_RGB;
+        end
+    end
+    
+    else if (in_tile || in_tile_8_visitor) begin
+        if (on_tile_border || on_tile_8_visitor_border) begin
+            {r, g, b} = TILE_BORDER_RGB;
+        end else if (in_tile[0] || in_tile[8] || in_tile[16] || in_tile[24]) begin
+            {r, g, b} = CORNER_TILE_BACKGROUND_RGB;
+        end else if (in_tile[4] || in_tile[20]) begin
+            {r, g, b} = CHANCE_TILE_BACKGROUND_RGB;
+        end else if (in_tile[12] || in_tile[28]) begin
+            {r, g, b} = STOP_TILE_BACKGROUND_RGB;
+        end else begin
+            {r, g, b} = TILE_BACKGROUND_RGB;
+        end
+    end
+    
+    else if (in_dice_box[0] || in_dice_box[1]) begin
+        if (on_dice_box_border[0] || on_dice_box_border[1]) begin
+            {r, g, b} = TILE_BORDER_RGB;
+        end else begin
+            {r, g, b} = TILE_BACKGROUND_RGB;
+        end
+    end 
+    
+    else if (in_global_background) begin
+      {r, g, b} = GLOBAL_BACKGROUND_RGB;
+    end else begin
+      {r, g, b} = BLACK_RGB;    // Default to black
+    end
+  end
+
+endmodule

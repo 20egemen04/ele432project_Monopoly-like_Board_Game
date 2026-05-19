@@ -1,0 +1,212 @@
+// board_texts_dynamic.sv
+
+module board_texts_dynamic #(
+    parameter MAX_CHARS = 42,  // Set this when you instantiate! Maximum 80 to fit on a 640 pixel screen with 8x8 font
+    parameter BLACK_RGB = 24'h000000,
+    parameter BLACK_TEXT_RGB = 24'h010101, // Slightly off-black to prevent text from being completely invisible when overlapping with box borders
+    parameter WHITE_TEXT_RGB = 24'hFFFFFF
+    //parameter P1_TEXT_RGB = 24'hFF0000
+)(
+    input  logic [9:0]  x, y,
+    input  logic        clk,
+    input  logic [31:0] player_money,           // 32-bit vector of player money 8 bits each
+    input  logic [3:0]  pawn_selected,          // whether this pawn is currently selected
+    input  logic [3:0]  pawn_enabled,           // which pawns are enabled (for text coloring)
+    input  logic        enable_display_chance,
+    input  logic [4:0]  card_id,                // Which card to read (1 to 21)
+    output logic [7:0]  r, g, b
+);
+
+    // Internal signals and Font Data
+    // Yes, I am aware it is a duplicate.
+    logic [10:0] master_rom_addr;
+    logic [7:0] master_rom_data;
+
+    logic [10:0] text_addr [127:0];
+    logic text_pix [127:0];
+    logic text_box [127:0];
+
+    always_comb begin
+        // Only give the ROM address to the module that the VGA beam is currently inside
+        master_rom_addr = 9'd0; // Default value (covers the 'else' case)
+        
+        // Loop from highest index down to 0
+        // text_box[0] will "win" because it's the last assignment made
+        for (int i = 5; i >= 0; i--) begin
+            if (text_box[i]) begin
+                master_rom_addr = text_addr[i];
+            end
+        end
+    end
+
+    font_rom fontROM_dynamic(
+        .font_addr(master_rom_addr),
+        .font_data_out(master_rom_data)
+    );
+
+    // Internal signals for chance card
+    logic [((MAX_CHARS * 8) - 1):0] chance_string_line_0, chance_string_line_1, chance_string_line_2, chance_string_line_3;
+
+    // Get text from ROM
+    chance_card_text_rom_string text_rom_string(
+        .clk(clk),
+        .card_id(card_id),
+        .text_string_line_0(chance_string_line_0),
+        .text_string_line_1(chance_string_line_1),
+        .text_string_line_2(chance_string_line_2),
+        .text_string_line_3(chance_string_line_3)
+    );
+
+    // Render Chance Card texts
+    text_display #(.MAX_CHARS(4'd13)) chance_line_0
+    (
+        .x(x), .y(y),
+        .start_x(10'd72), .start_y(10'd72), 
+        .enable_display(enable_display_chance),  // Only on when the chance card is active
+        .text_string(" CHANCE CARD "),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[0]), 
+        .pixel_on(text_pix[0]), .in_box(text_box[0])
+    );
+
+    text_display #(.MAX_CHARS(4'd13)) chance_line_1
+    (
+        .x(x), .y(y),
+        .start_x(10'd72), .start_y(10'd80), 
+        .enable_display(enable_display_chance),  // Only on when the chance card is active
+        .text_string("-------------"),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[1]), 
+        .pixel_on(text_pix[1]), .in_box(text_box[1])
+    );
+
+    text_display chance_line_2
+    (
+        .x(x), .y(y),
+        .start_x(10'd72), .start_y(10'd88),
+        .enable_display(enable_display_chance),  // Only on when the chance card is active
+        .text_string(chance_string_line_0),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[2]), 
+        .pixel_on(text_pix[2]), .in_box(text_box[2])
+    );
+
+    text_display chance_line_3
+    (
+        .x(x), .y(y),
+        .start_x(10'd72), .start_y(10'd96),
+        .enable_display(enable_display_chance),  // Only on when the chance card is active
+        .text_string(chance_string_line_1),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[3]), 
+        .pixel_on(text_pix[3]), .in_box(text_box[3])
+    );
+
+    text_display chance_line_4
+    (
+        .x(x), .y(y),
+        .start_x(10'd72), .start_y(10'd104),
+        .enable_display(enable_display_chance),  // Only on when the chance card is active
+        .text_string(chance_string_line_2),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[4]), 
+        .pixel_on(text_pix[4]), .in_box(text_box[4])
+    );
+
+    text_display chance_line_5
+    (
+        .x(x), .y(y),
+        .start_x(10'd72), .start_y(10'd112),
+        .enable_display(enable_display_chance),  // Only on when the chance card is active
+        .text_string(chance_string_line_3),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[5]), 
+        .pixel_on(text_pix[5]), .in_box(text_box[5])
+    );
+    
+
+
+    // Internal signals for player info (start at least (489, 9) but here use (492, 13) for static start and (492, 21) for dynamic start)
+    logic [135:0] player_info_string_line [3:0];
+
+    // Prepare text strings
+    always_comb begin
+        // Defaults
+        for (int i = 0; i < 4; i++) begin
+            player_info_string_line[i] = 40'd0;
+        end
+        
+        for (int i = 0; i < 4; i++) begin
+            if (pawn_enabled[i]) begin
+                if (pawn_selected[i])   player_info_string_line[i][135:128] = ";";
+                else                    player_info_string_line[i][135:128] = " ";
+                player_info_string_line[i][127:112] = " P";
+                player_info_string_line[i][111:104] = 8'(i + int'd49);
+                player_info_string_line[i][103:40]  = "   :   $";                
+                player_info_string_line[i][39:32]   = 8'((player_money[(i * 8) +: 8] / 100) + 8'd48);
+                player_info_string_line[i][31:24]   = 8'(((player_money[(i * 8) +: 8] % 100) / 10) + 8'd48);
+                player_info_string_line[i][23:16]   = 8'((player_money[(i * 8) +: 8] % 10) + 8'd48);
+                player_info_string_line[i][15:0]    = "00";
+            end
+        end
+    end
+
+    // Render Player Info texts
+    text_display #(.MAX_CHARS(5'd17)) player_info_line_0
+    (
+        .x(x), .y(y),
+        .start_x(10'd492), .start_y(10'd21), 
+        .enable_display(pawn_enabled[0]),  // Only on when player is active
+        .text_string(player_info_string_line[0]),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[6]), 
+        .pixel_on(text_pix[6]), .in_box(text_box[6])
+    );
+
+    text_display #(.MAX_CHARS(5'd17)) player_info_line_1
+    (
+        .x(x), .y(y),
+        .start_x(10'd492), .start_y(10'd29), 
+        .enable_display(pawn_enabled[1]),  // Only on when player is active
+        .text_string(player_info_string_line[1]),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[7]), 
+        .pixel_on(text_pix[7]), .in_box(text_box[7])
+    );
+
+    text_display #(.MAX_CHARS(5'd17)) player_info_line_2
+    (
+        .x(x), .y(y),
+        .start_x(10'd492), .start_y(10'd37), 
+        .enable_display(pawn_enabled[2]),  // Only on when player is active
+        .text_string(player_info_string_line[2]),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[8]), 
+        .pixel_on(text_pix[8]), .in_box(text_box[8])
+    );
+
+    text_display #(.MAX_CHARS(5'd17)) player_info_line_3
+    (
+        .x(x), .y(y),
+        .start_x(10'd492), .start_y(10'd45), 
+        .enable_display(pawn_enabled[3]),  // Only on when player is active
+        .text_string(player_info_string_line[3]),
+        .font_row(master_rom_data), 
+        .font_rom_addr(text_addr[9]), 
+        .pixel_on(text_pix[9]), .in_box(text_box[9])
+    );
+    
+
+
+
+
+    always_comb begin
+        if (text_pix[0] || text_pix[1] || text_pix[2] || text_pix[3] || text_pix[4] || text_pix[5]) begin
+            {r, g, b} = WHITE_TEXT_RGB;
+        end else begin
+            {r, g, b} = BLACK_RGB;
+        end
+    end
+
+
+endmodule

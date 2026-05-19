@@ -1,0 +1,45 @@
+-- game_memory.mif
+WIDTH=16;
+DEPTH=256;
+ADDRESS_RADIX=UNS;
+DATA_RADIX=UNS;
+
+CONTENT BEGIN
+-- Addresses 0 to 3: Player 1-4 Starting Money (Stored as 100 = $10000)
+0 : 100;
+1 : 100;
+2 : 100;
+3 : 100;
+
+-- Addresses 4 to 7: Player 1-4 Starting Positions (Tile 0)
+4 : 0;
+5 : 0;
+6 : 0;
+7 : 0;
+
+-- Addresses 10 to 41: Property Ownership Data for Tiles 0-31
+-- (0 = Unowned, 4 = Player 1, 5 = Player 2, 6 = Player 3, 7 = Player 4)
+[8..41] : 0;
+
+-- Addresses 42 to 73: Vending Machine Counts for Tiles 0-31
+-- (0 = No machines, Max = 3)
+[42..73] : 0;
+
+-- Address 80: Last Dice Roll (Bits [6:4] = Dice 2, Bits [2:0] = Dice 1)
+[74..80] : 0;
+
+-- Address 81: Last Drawn Chance Card ID (0 to 21)
+81 : 0;
+
+-- Addresses 90 to 93: Make-up Exam Wait Status (0 = Normal, 1 = Skip Next Turn)
+[82..93] : 0;
+
+-- Addresses 94 to 97: The FSM-to-VGA Mailbox
+94 : 0; -- Total Players (Actual Count, e.g., 4)
+95 : 0; -- Current Player (Index 0-3)
+96 : 0; -- Active Price
+97 : 0; -- COMMAND REGISTER (VGA constantly polls this! 0 = Clear, 4 = Buy, 5 = Vend, etc.)
+
+-- Addresses 98 to 255: Unused
+[98..255] : 0;
+END;

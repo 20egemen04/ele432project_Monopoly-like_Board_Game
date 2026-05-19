@@ -1,0 +1,330 @@
+// board_boxes_static.sv
+
+module board_boxes_static #(
+    parameter BLACK_RGB = 24'h000000,
+    parameter GLOBAL_BACKGROUND_RGB = 24'h8FCCCC,
+    parameter BIG_BOX_BACKGROUND_RGB = 24'h1F1F1F,
+    parameter BIG_BOX_BORDER_RGB = 24'hFFFFFF,
+    parameter TILE_BACKGROUND_RGB = 24'hFFFFFF,
+    parameter TILE_BORDER_RGB = 24'h000000,
+    parameter CORNER_TILE_BACKGROUND_1_RGB = 24'h804620,
+    parameter CORNER_TILE_BACKGROUND_2_RGB = 24'h003F00,
+    parameter CHANCE_TILE_BACKGROUND_RGB = 24'h8040A0,
+    parameter STOP_TILE_BACKGROUND_RGB = 24'h80405F,
+    parameter PLAYER_INFO_BOX_BACKGROUND_RGB = 24'h000000,
+    parameter PLAYER_INFO_BOX_BORDER_RGB = 24'hFFFFFF,
+
+    parameter TILE_0_8_TOP = 10'd415,
+    parameter TILE_0_8_BOT = 10'd480,
+    parameter TILE_8_16_LEFT = 10'd0,
+    parameter TILE_8_16_RIGHT = 10'd65,
+    parameter TILE_16_24_TOP = 10'd0,
+    parameter TILE_16_24_BOT = 10'd65,
+    parameter TILE_24_32_LEFT = 10'd415,
+    parameter TILE_24_32_RIGHT = 10'd480
+) (
+    input  logic [9:0] x, y,
+    output logic [7:0] r, g, b
+);
+
+  // Internal signals for box generation
+  logic in_global_background;
+  logic in_big_box_0, on_big_box_border_0;
+  logic in_big_box_1, on_big_box_border_1;
+  logic [31:0] in_tile, on_tile_border;
+  logic in_tile_8_visitor, on_tile_8_visitor_border;
+  logic in_player_info_box, on_player_info_box_border;
+  logic [1:0] in_dice_box, on_dice_box_border;
+
+  // Generate boxes using rectgen
+  rectgen global_background (
+        .x(x), .y(y),
+        .left(10'd0), .top(10'd0), .right(10'd640), .bot(10'd480),
+        .inrect(in_global_background), .onborder()
+  );
+  rectgen big_box_0 (
+        .x(x), .y(y),
+        .left(10'd70), .top(10'd70), .right(10'd410), .bot(10'd210),
+        .inrect(in_big_box_0), .onborder(on_big_box_border_0)
+  );
+
+  rectgen big_box_1 (
+        .x(x), .y(y),
+        .left(10'd70), .top(10'd270), .right(10'd410), .bot(10'd410),
+        .inrect(in_big_box_1), .onborder(on_big_box_border_1)
+  );
+
+  rectgen tile_0 (
+        .x(x), .y(y),
+        .left(10'd415), .top(TILE_0_8_TOP), .right(10'd480), .bot(TILE_0_8_BOT),
+        .inrect(in_tile[0]), .onborder(on_tile_border[0])
+  );
+
+  rectgen tile_1 (
+        .x(x), .y(y),
+        .left(10'd365), .top(TILE_0_8_TOP), .right(10'd415), .bot(TILE_0_8_BOT),
+        .inrect(in_tile[1]), .onborder(on_tile_border[1])
+  );
+
+  rectgen tile_2 (
+        .x(x), .y(y),
+        .left(10'd315), .top(TILE_0_8_TOP), .right(10'd365), .bot(TILE_0_8_BOT),
+        .inrect(in_tile[2]), .onborder(on_tile_border[2])
+  );
+
+  rectgen tile_3 (
+        .x(x), .y(y),
+        .left(10'd265), .top(TILE_0_8_TOP), .right(10'd315), .bot(TILE_0_8_BOT),
+        .inrect(in_tile[3]), .onborder(on_tile_border[3])
+  );
+
+  rectgen tile_4 (
+        .x(x), .y(y),
+        .left(10'd215), .top(TILE_0_8_TOP), .right(10'd265), .bot(TILE_0_8_BOT),
+        .inrect(in_tile[4]), .onborder(on_tile_border[4])
+  );
+
+  rectgen tile_5 (
+        .x(x), .y(y),
+        .left(10'd165), .top(TILE_0_8_TOP), .right(10'd215), .bot(TILE_0_8_BOT),
+        .inrect(in_tile[5]), .onborder(on_tile_border[5])
+  );
+  
+  rectgen tile_6 (
+        .x(x), .y(y),
+        .left(10'd115), .top(TILE_0_8_TOP), .right(10'd165), .bot(TILE_0_8_BOT),
+        .inrect(in_tile[6]), .onborder(on_tile_border[6])
+  );
+  
+  rectgen tile_7 (
+        .x(x), .y(y),
+        .left(10'd65), .top(TILE_0_8_TOP), .right(10'd115), .bot(TILE_0_8_BOT),
+        .inrect(in_tile[7]), .onborder(on_tile_border[7])
+  );
+
+  rectgen tile_8_visitor (
+        .x(x), .y(y),
+        .left(TILE_8_16_LEFT), .top(TILE_0_8_TOP), .right(TILE_8_16_RIGHT), .bot(TILE_0_8_BOT),
+        .inrect(in_tile_8_visitor), .onborder(on_tile_8_visitor_border)
+  );
+
+  rectgen tile_8 (
+        .x(x), .y(y),
+        .left(10'd15), .top(TILE_0_8_TOP), .right(TILE_8_16_RIGHT), .bot(10'd465),
+        .inrect(in_tile[8]), .onborder(on_tile_border[8])
+  );
+
+  rectgen tile_9 (
+        .x(x), .y(y),
+        .left(TILE_8_16_LEFT), .top(10'd365), .right(TILE_8_16_RIGHT), .bot(TILE_0_8_TOP),
+        .inrect(in_tile[9]), .onborder(on_tile_border[9])
+  );
+
+  rectgen tile_10 (
+        .x(x), .y(y),
+        .left(TILE_8_16_LEFT), .top(10'd315), .right(TILE_8_16_RIGHT), .bot(10'd365),
+        .inrect(in_tile[10]), .onborder(on_tile_border[10])
+  );
+
+  rectgen tile_11 (
+        .x(x), .y(y),
+        .left(TILE_8_16_LEFT), .top(10'd265), .right(TILE_8_16_RIGHT), .bot(10'd315),
+        .inrect(in_tile[11]), .onborder(on_tile_border[11])
+  );
+
+  rectgen tile_12 (
+        .x(x), .y(y),
+        .left(TILE_8_16_LEFT), .top(10'd215), .right(TILE_8_16_RIGHT), .bot(10'd265),
+        .inrect(in_tile[12]), .onborder(on_tile_border[12])
+  );
+
+  rectgen tile_13 (
+        .x(x), .y(y),
+        .left(TILE_8_16_LEFT), .top(10'd165), .right(TILE_8_16_RIGHT), .bot(10'd215),
+        .inrect(in_tile[13]), .onborder(on_tile_border[13])
+  );
+  
+  rectgen tile_14 (
+        .x(x), .y(y),
+        .left(TILE_8_16_LEFT), .top(10'd115), .right(TILE_8_16_RIGHT), .bot(10'd165),
+        .inrect(in_tile[14]), .onborder(on_tile_border[14])
+  );
+  
+  rectgen tile_15 (
+        .x(x), .y(y),
+        .left(TILE_8_16_LEFT), .top(TILE_16_24_BOT), .right(TILE_8_16_RIGHT), .bot(10'd115),
+        .inrect(in_tile[15]), .onborder(on_tile_border[15])
+  );
+
+  rectgen tile_16 (
+        .x(x), .y(y),
+        .left(TILE_8_16_LEFT), .top(TILE_16_24_TOP), .right(TILE_8_16_RIGHT), .bot(TILE_16_24_BOT),
+        .inrect(in_tile[16]), .onborder(on_tile_border[16])
+  );
+
+  rectgen tile_17 (
+        .x(x), .y(y),
+        .left(10'd65), .top(TILE_16_24_TOP), .right(10'd115), .bot(TILE_16_24_BOT),
+        .inrect(in_tile[17]), .onborder(on_tile_border[17])
+  );
+
+  rectgen tile_18 (
+        .x(x), .y(y),
+        .left(10'd115), .top(TILE_16_24_TOP), .right(10'd165), .bot(TILE_16_24_BOT),
+        .inrect(in_tile[18]), .onborder(on_tile_border[18])
+  );
+
+  rectgen tile_19 (
+        .x(x), .y(y),
+        .left(10'd165), .top(TILE_16_24_TOP), .right(10'd215), .bot(TILE_16_24_BOT),
+        .inrect(in_tile[19]), .onborder(on_tile_border[19])
+  );
+
+  rectgen tile_20 (
+        .x(x), .y(y),
+        .left(10'd215), .top(TILE_16_24_TOP), .right(10'd265), .bot(TILE_16_24_BOT),
+        .inrect(in_tile[20]), .onborder(on_tile_border[20])
+  );
+
+  rectgen tile_21 (
+        .x(x), .y(y),
+        .left(10'd265), .top(TILE_16_24_TOP), .right(10'd315), .bot(TILE_16_24_BOT),
+        .inrect(in_tile[21]), .onborder(on_tile_border[21])
+  );
+
+  rectgen tile_22 (
+        .x(x), .y(y),
+        .left(10'd315), .top(TILE_16_24_TOP), .right(10'd365), .bot(TILE_16_24_BOT),
+        .inrect(in_tile[22]), .onborder(on_tile_border[22])
+  );
+
+  rectgen tile_23 (
+        .x(x), .y(y),
+        .left(10'd365), .top(TILE_16_24_TOP), .right(TILE_24_32_LEFT), .bot(TILE_16_24_BOT),
+        .inrect(in_tile[23]), .onborder(on_tile_border[23])
+  );
+
+  rectgen tile_24 (
+        .x(x), .y(y),
+        .left(TILE_24_32_LEFT), .top(TILE_16_24_TOP), .right(TILE_24_32_RIGHT), .bot(TILE_16_24_BOT),
+        .inrect(in_tile[24]), .onborder(on_tile_border[24])
+  );
+
+  rectgen tile_25 (
+        .x(x), .y(y),
+        .left(TILE_24_32_LEFT), .top(10'd65), .right(TILE_24_32_RIGHT), .bot(10'd115),
+        .inrect(in_tile[25]), .onborder(on_tile_border[25])
+  );
+
+  rectgen tile_26 (
+        .x(x), .y(y),
+        .left(TILE_24_32_LEFT), .top(10'd115), .right(TILE_24_32_RIGHT), .bot(10'd165),
+        .inrect(in_tile[26]), .onborder(on_tile_border[26])
+  );
+
+  rectgen tile_27 (
+        .x(x), .y(y),
+        .left(TILE_24_32_LEFT), .top(10'd165), .right(TILE_24_32_RIGHT), .bot(10'd215),
+        .inrect(in_tile[27]), .onborder(on_tile_border[27])
+  );
+
+  rectgen tile_28 (
+        .x(x), .y(y),
+        .left(TILE_24_32_LEFT), .top(10'd215), .right(TILE_24_32_RIGHT), .bot(10'd265),
+        .inrect(in_tile[28]), .onborder(on_tile_border[28])
+  );
+
+  rectgen tile_29 (
+        .x(x), .y(y),
+        .left(TILE_24_32_LEFT), .top(10'd265), .right(TILE_24_32_RIGHT), .bot(10'd315),
+        .inrect(in_tile[29]), .onborder(on_tile_border[29])
+  );
+
+  rectgen tile_30 (
+        .x(x), .y(y),
+        .left(TILE_24_32_LEFT), .top(10'd315), .right(TILE_24_32_RIGHT), .bot(10'd365),
+        .inrect(in_tile[30]), .onborder(on_tile_border[30])
+  );
+
+  rectgen tile_31 (
+        .x(x), .y(y),
+        .left(TILE_24_32_LEFT), .top(10'd365), .right(TILE_24_32_RIGHT), .bot(TILE_0_8_TOP),
+        .inrect(in_tile[31]), .onborder(on_tile_border[31])
+  );
+
+  rectgen player_info_box (
+        .x(x), .y(y),
+        .left(10'd488), .top(10'd8), .right(10'd632), .bot(10'd58),
+        .inrect(in_player_info_box), .onborder(on_player_info_box_border)
+  );
+
+  rectgen dice_0_box (
+        .x(x), .y(y),
+        .left(10'd506), .top(10'd65), .right(10'd556), .bot(10'd115),
+        .inrect(in_dice_box[0]), .onborder(on_dice_box_border[0])
+  );
+
+  rectgen dice_1_box (
+        .x(x), .y(y),
+        .left(10'd564), .top(10'd65), .right(10'd614), .bot(10'd115),
+        .inrect(in_dice_box[1]), .onborder(on_dice_box_border[1])
+  );
+
+  // ADD OTHER BOX LOGIC HERE
+  // PAWNS, VENDING MACHINE, OTHER OVERLAYS, ETC.
+
+
+
+
+
+  // Pixel Color Logic
+  always_comb begin
+      // Big Box
+      if (in_big_box_0 || in_big_box_1) begin
+            if (on_big_box_border_0 || on_big_box_border_1) begin
+                  {r, g, b} = BIG_BOX_BORDER_RGB;
+            end else begin
+                  {r, g, b} = BIG_BOX_BACKGROUND_RGB;
+            end
+      end
+      // Player Info Box
+      else if (in_player_info_box) begin
+            if (on_player_info_box_border) begin
+                  {r, g, b} = PLAYER_INFO_BOX_BORDER_RGB;
+            end else begin
+                  {r, g, b} = PLAYER_INFO_BOX_BACKGROUND_RGB;
+            end
+      end
+      // Tiles
+      else if (in_tile || in_tile_8_visitor) begin
+            if (on_tile_border || on_tile_8_visitor_border) begin
+                  {r, g, b} = TILE_BORDER_RGB;
+            end else if (in_tile[8] || in_tile[24]) begin
+                  {r, g, b} = CORNER_TILE_BACKGROUND_1_RGB;
+            end else if (in_tile[0] || in_tile[16]) begin
+                  {r, g, b} = CORNER_TILE_BACKGROUND_2_RGB;
+            end else if (in_tile[4] || in_tile[20]) begin
+                  {r, g, b} = CHANCE_TILE_BACKGROUND_RGB;
+            end else if (in_tile[12] || in_tile[28]) begin
+                  {r, g, b} = STOP_TILE_BACKGROUND_RGB;
+            end else begin
+                  {r, g, b} = TILE_BACKGROUND_RGB;
+            end
+      end
+      // Dice Boxes
+      else if (in_dice_box[0] || in_dice_box[1]) begin
+            if (on_dice_box_border[0] || on_dice_box_border[1]) begin
+                  {r, g, b} = TILE_BORDER_RGB;
+            end else begin
+                  {r, g, b} = TILE_BACKGROUND_RGB;
+            end
+      end 
+      // Global Background
+      else if (in_global_background) begin
+            {r, g, b} = GLOBAL_BACKGROUND_RGB;
+      end else begin
+            {r, g, b} = BLACK_RGB;    // Default to black
+      end
+  end
+
+endmodule

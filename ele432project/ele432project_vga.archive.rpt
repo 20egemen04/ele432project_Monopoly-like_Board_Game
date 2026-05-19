@@ -1,0 +1,115 @@
+Archive Project report for ele432project_vga
+Tue May 19 17:33:33 2026
+Quartus Prime Version 25.1std.0 Build 1129 10/21/2025 SC Lite Edition
+
+
+---------------------
+; Table of Contents ;
+---------------------
+  1. Legal Notice
+  2. Archive Project Summary
+  3. Archive Project Messages
+  4. Files Archived
+
+
+
+----------------
+; Legal Notice ;
+----------------
+Copyright (C) 2025  Altera Corporation. All rights reserved.
+Your use of Altera Corporation's design tools, logic functions 
+and other software and tools, and any partner logic 
+functions, and any output files from any of the foregoing 
+(including device programming or simulation files), and any 
+associated documentation or information are expressly subject 
+to the terms and conditions of the Altera Program License 
+Subscription Agreement, the Altera Quartus Prime License Agreement,
+the Altera IP License Agreement, or other applicable license
+agreement, including, without limitation, that your use is for
+the sole purpose of programming logic devices manufactured by
+Altera and sold by Altera or its authorized distributors.  Please
+refer to the Altera Software License Subscription Agreements 
+on the Quartus Prime software download page.
+
+
+
++----------------------------------------------------------------+
+; Archive Project Summary                                        ;
++------------------------+---------------------------------------+
+; Archive Project Status ; Successful - Tue May 19 17:33:33 2026 ;
+; Revision Name          ; ele432project_vga                     ;
+; Top-level Entity Name  ; game_top                              ;
+; Family                 ; Cyclone V                             ;
++------------------------+---------------------------------------+
+
+
++--------------------------+
+; Archive Project Messages ;
++--------------------------+
+Info: File Set 'Source control' contains:
+    Info: Project source and settings files
+    Info: Automatically detected source files
+Warning: Hierarchical Platform Designer systems and custom IP components(_hw.tcl and associated files) are not archived by the Quartus Archiver
+Info: Archive will store files relative to the closest common parent directory
+Info (13213): Using common directory C:/Projects/GitHub/ele432project/ele432project/
+Info: ----------------------------------------------------------
+Info: ----------------------------------------------------------
+Info: Generated archive 'C:/Projects/GitHub/ele432project/ele432project/ele432project.qar'
+Info: ----------------------------------------------------------
+Info: ----------------------------------------------------------
+Info: Generated report 'ele432project_vga.archive.rpt'
+Info (23030): Evaluation of Tcl script c:/altera_lite/25.1std/quartus/common/tcl/apps/qpm/qar.tcl was successful
+Info: Quartus Prime Shell was successful. 0 errors, 1 warning
+    Info: Peak virtual memory: 4881 megabytes
+    Info: Processing ended: Tue May 19 17:33:33 2026
+    Info: Elapsed time: 00:00:03
+    Info: Total CPU time (on all processors): 00:00:01
+
+
++--------------------------------------------------------------+
+; Files Archived                                               ;
++--------------------------------------------------------------+
+; File Name                                                    ;
++--------------------------------------------------------------+
+; board_boxes_dynamic.sv                                       ;
+; board_boxes_static.sv                                        ;
+; board_display.sv                                             ;
+; board_texts_dynamic.sv                                       ;
+; board_texts_static.sv                                        ;
+; button_debouncer.sv                                          ;
+; c:/altera_lite/25.1std/quartus/bin64/assignment_defaults.qdf ;
+; chance_card_text_rom_string.sv                               ;
+; change_card_engine.sv                                        ;
+; char8x8_mem.txt                                              ;
+; draw_dice.sv                                                 ;
+; draw_pawn.sv                                                 ;
+; ele432project_vga.qpf                                        ;
+; ele432project_vga.qsf                                        ;
+; ele432project_vga.sdc                                        ;
+; font_rom.sv                                                  ;
+; game_top.sv                                                  ;
+; hex_decoder.sv                                               ;
+; i2c_master.sv                                                ;
+; main_game_fsm.sv                                             ;
+; memory_controller.sv                                         ;
+; mif1.mif                                                     ;
+; monopoly_rng_core.sv                                         ;
+; mpu6050_controller.sv                                        ;
+; price_calculator.sv                                          ;
+; rectgen.sv                                                   ;
+; shake_detector.sv                                            ;
+; text_display.sv                                              ;
+; vga.sv                                                       ;
+; vga_memory_sweeper.sv                                        ;
+; vga_pll.cmp                                                  ;
+; vga_pll.qip                                                  ;
+; vga_pll.sip                                                  ;
+; vga_pll.spd                                                  ;
+; vga_pll.v                                                    ;
+; vga_pll/vga_pll_0002.qip                                     ;
+; vga_pll/vga_pll_0002.v                                       ;
+; vga_pll_sim/vga_pll.vo                                       ;
+; vga_wrapper.sv                                               ;
++--------------------------------------------------------------+
+
+
